@@ -8,6 +8,9 @@ const userRoutes = require("./routes/users");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+
+
+
 // Middleware
 app.use(cors()); // Enable CORS for all origins
 app.use(express.json()); // Parse incoming JSON

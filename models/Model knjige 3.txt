@@ -1,0 +1,281 @@
+1const mongoose = require("mongoose");
+
+const bookSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, "Book title is required"],
+      trim: true,344444444444
+    },
+isNew: {
+  type: Boolean,
+  default: false
+},
+    author: {
+      type: String,
+      required: [true, "Author is required"],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+   genre: {
+  type: String,
+  enum: ["Udžbenici", "Beletristika", "Stručna literatura", "Ostalo"],
+  required: true,
+},
+    language: {
+      type: String,
+      enum: ["English", "Bosnian", "German", "French", "Other"],
+      default: "English",
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: [0, "Price must be a positive number"],
+    },
+
+discount: {
+  amount: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0, // Popust u procentima
+  },
+  validUntil: {
+    type: Date, // Datum do kada važi popust
+  }
+},
+    stock: {
+      type: Number,
+      default: 0,
+      min: [0, "Stock cannot be negative"],
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    coverImage: {
+      type: String,
+      trim: true,
+    },
+    publicationYear: {
+      type: Number,
+      min: 1000,
+      max: new Date().getFullYear(),
+    },
+    publisher: {
+      type: String,
+      trim: true,
+    },
+    pages: {
+      type: Number,
+      min: [1, "A book must have at least 1 page"],
+    },
+    format: {
+      type: String,
+      enum: ["Paperback", "Hardcover", "eBook", "Audio", "Other"],
+      default: "Paperback",
+    },
+    isbn: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // allows multiple docs with null ISBN
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Book", bookSchema);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect } from "react";
+import {
+  TextField,
+  InputAdornment,
+  Box,
+  Paper,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Avatar,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import Fuse from "fuse.js";
+import { motion } from "framer-motion";
+
+const SearchBar = ({ booksCopy, setBooks, books }) => {
+  const [query, setQuery] = useState("");
+  const [fuse, setFuse] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+
+  useEffect(() => {
+    if (books.length > 0) {
+      const fuseInstance = new Fuse(books, {
+        keys: ["title", "author", "isbn", "publisher"],
+        threshold: 0.3,
+      });
+      setFuse(fuseInstance);
+    }
+  }, [books]);
+
+ const handleSearch = (e) => {
+  const value = e.target.value;
+  setQuery(value);
+
+  if (value.trim() === "") {
+    setSuggestions([]);
+    return;
+  }
+
+  if (fuse) {
+    const results = fuse.search(value).map((res) => res.item);
+    setSuggestions(results.slice(0, 6)); // only show suggestions
+  }
+};
+
+  const handleSelect = (book) => {
+  setQuery(book.title);
+  setBooks([book]); // now update the main books state
+  setSuggestions([]); // close dropdown
+};
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+        px: 2,
+        mt: "5rem",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
+      <motion.div
+        whileHover={{ scale: 1.01 }}
+        style={{
+          flexGrow: 1,
+          maxWidth: "900px",
+          width: "100%",
+        }}
+      >
+        <TextField
+          size="small"
+          value={query}
+          onChange={handleSearch}
+          placeholder="Pretraži knjige, autore, ISBN..."
+          fullWidth
+          variant="outlined"
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "50px",
+              background: "rgba(255,255,255,0.9)",
+              backdropFilter: "blur(8px)",
+              transition: "all 0.3s ease",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              "&:hover": {
+                background: "rgba(255,255,255,1)",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.15)",
+              },
+              "&.Mui-focused": {
+                boxShadow: "0 0 0 3px rgba(49,49,49,0.2)",
+              },
+              "& fieldset": {
+                border: "none",
+              },
+            },
+            input: {
+              padding: "10px 14px",
+              fontSize: "0.95rem",
+            },
+          }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "#313131", fontSize: "1.3rem" }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </motion.div>
+
+      {/* Suggestions dropdown */}
+      {suggestions.length > 0 && (
+        <Paper
+          elevation={4}
+          sx={{
+            mt: 1,
+            maxWidth: "900px",
+            width: "100%",
+            borderRadius: 2,
+            overflow: "hidden",
+            position: "absolute",
+            top: "100%",
+            zIndex: 10,
+          }}
+        >
+          <List>
+            {suggestions.map((book) => (
+              <ListItem
+                button
+                key={book._id}
+                onClick={() => handleSelect(book)}
+              >
+                <ListItemAvatar>
+                  <Avatar
+                    src={book.coverImage}
+                    variant="square"
+                    sx={{ width: 40, height: 60 }}
+                  />
+                </ListItemAvatar>
+                <ListItemText
+                  primary={book.title}
+                  secondary={book.author}
+                  primaryTypographyProps={{
+                    noWrap: true,
+                    fontSize: "0.9rem",
+                    fontWeight: 500,
+                  }}
+                  secondaryTypographyProps={{
+                    noWrap: true,
+                    fontSize: "0.75rem",
+                    color: "text.secondary",
+                  }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
+      )}
+    </Box>
+  );
+};
+
+export default SearchBar;
+

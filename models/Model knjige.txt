@@ -1,0 +1,93 @@
+const mongoose = require("mongoose");
+
+const bookSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, "Book title is required"],
+      trim: true,
+    },
+isNew: {
+  type: Boolean,
+  default: false
+},
+    author: {
+      type: String,
+      required: [true, "Author is required"],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+   genre: {
+  type: String,
+  enum: ["Udžbenici", "Beletristika", "Stručna literatura", "Ostalo"],
+  required: true,
+},
+    language: {
+      type: String,
+      enum: ["English", "Bosnian", "German", "French", "Other"],
+      default: "English",
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: [0, "Price must be a positive number"],
+    },
+
+discount: {
+  amount: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0, // Popust u procentima
+  },
+  validUntil: {
+    type: Date, // Datum do kada važi popust
+  }
+},
+    stock: {
+      type: Number,
+      default: 0,
+      min: [0, "Stock cannot be negative"],
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    coverImage: {
+      type: String,
+      trim: true,
+    },
+    publicationYear: {
+      type: Number,
+      min: 1000,
+      max: new Date().getFullYear(),
+    },
+    publisher: {
+      type: String,
+      trim: true,
+    },
+    pages: {
+      type: Number,
+      min: [1, "A book must have at least 1 page"],
+    },
+    format: {
+      type: String,
+      enum: ["Paperback", "Hardcover", "eBook", "Audio", "Other"],
+      default: "Paperback",
+    },
+    isbn: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // allows multiple docs with null ISBN
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Book", bookSchema);

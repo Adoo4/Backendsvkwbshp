@@ -4,6 +4,9 @@ const cors = require("cors");
 require("dotenv").config();
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,9 +17,14 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors()); // Enable CORS for all origins
 app.use(express.json()); // Parse incoming JSON
+app.use(helmet()); // Security headers
+app.use(morgan("dev")); // Logs requests in console
 
-
-
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 mins
+  max: 100, // limit each IP
+});
+app.use(limiter);
 
 
 // Connect to MongoDB

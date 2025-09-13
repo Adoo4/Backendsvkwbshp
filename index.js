@@ -30,6 +30,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ---------------- Routes ----------------
+app.get("/", (req, res) => {
+  res.send("📚 Welcome to the Bookstore API backend!");
+});
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
 

@@ -1,42 +1,52 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
+
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const morgan = require("morgan");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ---------------- Middleware ----------------
+app.use(cors());
+app.use(express.json());
 
+// Security: sets secure HTTP headers
+app.use(helmet());
 
+// Logging: logs requests (method, URL, status, response time)
+app.use(morgan("dev"));
 
-// Middleware
-app.use(cors()); // Enable CORS for all origins
-app.use(express.json()); // Parse incoming JSON
-app.use(helmet()); // Security headers
-app.use(morgan("dev")); // Logs requests in console
-
+// Rate limiting: prevent brute-force/spam
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 mins
-  max: 100, // limit each IP
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests
 });
 app.use(limiter);
 
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
-
-
+// ---------------- Routes ----------------
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
-console.log("Mounted /api/users routes");
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// ---------------- DB Connection ----------------
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ Connected to MongoDB");
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1); // Exit if DB fails
+  }
+};
+
+// ---------------- Start Server ----------------
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 });

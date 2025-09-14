@@ -3,7 +3,7 @@ const router = express.Router();
 const Book = require("../models/book");
 
 // GET all books
-router.get("/", async (req, res) => {
+{/*router.get("/", async (req, res) => {
   try {
     const books = await Book.find();
     res.json(books);
@@ -11,6 +11,49 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+*/}
+
+{/* New GET all books*/}
+router.get("/", async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 15,
+      category,
+      subCategory,
+      language,
+      isNew,
+      discount,
+    } = req.query;
+
+    const query = {};
+
+    if (category && category.toLowerCase() !== "sve knjige") query.mainCategory = category;
+    if (subCategory) query.subCategory = subCategory;
+    if (language) query.language = language;
+    if (isNew) query.isNew = true;
+    if (discount) query["discount.amount"] = { $gt: 0 };
+
+    const books = await Book.find(query)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    const totalBooks = await Book.countDocuments(query);
+
+    res.json({
+      books,
+      totalBooks,
+      totalPages: Math.ceil(totalBooks / limit),
+      currentPage: Number(page),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
 
 // GET related books - must come BEFORE /:id
 router.get("/related/:id", async (req, res) => {

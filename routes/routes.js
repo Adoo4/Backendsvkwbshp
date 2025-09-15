@@ -14,6 +14,7 @@ const Book = require("../models/book");
 */}
 
 {/* New GET all books*/}
+{/* New GET all books*/}
 router.get("/", async (req, res, next) => {
   try {
     const {
@@ -31,8 +32,8 @@ router.get("/", async (req, res, next) => {
     if (category && category.toLowerCase() !== "sve knjige") query.mainCategory = category;
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
-    if (isNew) query.isNew = true;
-    if (discount) query["discount.amount"] = { $gt: 0 };
+    if (typeof isNew !== "undefined") query.isNew = isNew === "true";
+    if (typeof discount !== "undefined") query["discount.amount"] = { $gt: 0 };
 
     const books = await Book.find(query)
       .limit(Number(limit))
@@ -50,6 +51,7 @@ router.get("/", async (req, res, next) => {
     next(err);
   }
 });
+
 
 
 

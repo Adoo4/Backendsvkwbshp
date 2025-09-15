@@ -32,8 +32,8 @@ router.get("/", async (req, res, next) => {
     if (category && category.toLowerCase() !== "sve knjige") query.mainCategory = category;
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
-    if (typeof isNew !== "undefined") query.isNew = isNew === "true";
-    if (typeof discount !== "undefined") query["discount.amount"] = { $gt: 0 };
+    if (isNew === "true") query.isNew = true;
+if (discount === "true") query["discount.amount"] = { $gt: 0 };
 
     const books = await Book.find(query)
       .limit(Number(limit))

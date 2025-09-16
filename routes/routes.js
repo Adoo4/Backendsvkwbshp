@@ -17,10 +17,11 @@ const Book = require("../models/book");
 {/* New GET all books*/}
 router.get("/", async (req, res, next) => {
   try {
+     res.set("Cache-Control", "no-store"); // ✅ add this
     const {
       page = 1,
       limit = 15,
-      category,
+      mainCategory,   // ✅ updated
       subCategory,
       language,
       isNew,
@@ -29,11 +30,15 @@ router.get("/", async (req, res, next) => {
 
     const query = {};
 
-    if (category && category.toLowerCase() !== "sve knjige") query.mainCategory = category;
+    if (mainCategory && mainCategory.toLowerCase() !== "sve knjige") {
+      query.mainCategory = mainCategory;
+    }
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true") query.isNew = true;
-if (discount === "true") query["discount.amount"] = { $gt: 0 };
+    if (discount === "true") query["discount.amount"] = { $gt: 0 };
+
+    console.log("MongoDB query:", query);
 
     const books = await Book.find(query)
       .limit(Number(limit))
@@ -51,6 +56,7 @@ if (discount === "true") query["discount.amount"] = { $gt: 0 };
     next(err);
   }
 });
+
 
 
 

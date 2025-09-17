@@ -85,17 +85,6 @@ router.get("/related/:id", async (req, res) => {
   }
 });
 
-// GET one book by ID
-router.get("/:id", async (req, res) => {
-  try {
-    const book = await Book.findById(req.params.id);
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    res.json(book);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
 // SEARCH Books
 router.get("/search", async (req, res) => {
   try {
@@ -116,12 +105,24 @@ router.get("/search", async (req, res) => {
       ],
     })
       .limit(20)
-      .select("_id title author coverImage isbn"); // select fields to return
+      .select("_id title author coverImage isbn");
 
     res.json(results);
   } catch (err) {
-    console.error("Search error:", err);
-    res.status(500).json({ error: "Search failed" });
+    console.error("Search error:", err); // <--- log full error
+    res.status(500).json({ error: "Search failed", details: err.message });
+  }
+});
+
+
+// GET one book by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
+    res.json(book);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

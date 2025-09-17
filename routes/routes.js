@@ -89,31 +89,37 @@ router.get("/related/:id", async (req, res) => {
 router.get("/search", async (req, res) => {
   try {
     const { q } = req.query;
+    if (!q) return res.json([]);
 
-    if (!q) return res.json([]); // empty query returns no results
-
-    const regex = new RegExp(q, "i"); // case-insensitive search
-
-    const results = await Book.find({
-      $or: [
-        { title: regex },
-        { author: regex },
-        { isbn: regex },
-        { publisher: regex },
-        { mainCategory: regex },
-        { subCategory: regex },
-      ],
-    })
-      .limit(20)
-      .select("_id title author coverImage isbn");
+    const results = await Book.aggregate([
+      {
+        $search: {
+          index: "default", // replace with your Atlas Search index name
+          autocomplete: {
+            query: q,
+            path: ["title", "author", "isbn", "publisher", "mainCategory", "subCategory"],
+            fuzzy: { maxEdits: 2, prefixLength: 1 } // allows typos
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          author: 1,
+          coverImage: 1,
+          isbn: 1
+        }
+      },
+      { $limit: 20 }
+    ]);
 
     res.json(results);
   } catch (err) {
-    console.error("Search error:", err); // <--- log full error
+    console.error("Search error:", err);
     res.status(500).json({ error: "Search failed", details: err.message });
   }
 });
-
 
 // GET one book by ID
 router.get("/:id", async (req, res) => {

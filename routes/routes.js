@@ -116,6 +116,9 @@ router.get("/search", async (req, res) => {
 
     res.json(results);
   } catch (err) {
+    console.error("Search error full:", err);
+console.error(err.stack);
+
     console.error("Search error:", err);
     res.status(500).json({ error: "Search failed", details: err.message });
   }

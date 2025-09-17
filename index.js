@@ -14,6 +14,14 @@ const PORT = process.env.PORT || 5000;
 
 // ---------------- Middleware ----------------
 app.use(cors());
+
+const corsOptions = {
+origin: ["http://localhost:3000", "https://svkbkstr.netlify.app/"], // allow your frontend
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // if you use cookies or auth headers
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Security: sets secure HTTP headers

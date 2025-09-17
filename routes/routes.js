@@ -100,22 +100,21 @@ router.get("/:id", async (req, res) => {
 router.get("/search", async (req, res) => {
   try {
     const { q } = req.query;
-
     if (!q) return res.json([]); // empty query returns no results
 
-    const results = await Book.aggregate([
-      {
-        $search: {
-          index: "default", // your index name
-          text: {
-            query: q,
-            path: ["title", "author", "isbn", "publisher", "mainCategory", "subCategory"],
-            fuzzy: { maxEdits: 1 } // typo tolerance
-          }
-        }
-      },
-      { $limit: 20 } // limit results
-    ]);
+    const regex = new RegExp(q, "i"); // case-insensitive search
+    const results = await Book.find({
+      $or: [
+        { title: regex },
+        { author: regex },
+        { isbn: regex },
+        { publisher: regex },
+        { mainCategory: regex },
+        { subCategory: regex },
+      ],
+    })
+      .limit(20)
+      .select("_id title author coverImage isbn"); // include isbn
 
     res.json(results);
   } catch (err) {
@@ -123,6 +122,7 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ error: "Search failed" });
   }
 });
+
 
 // CREATE a new book
 router.post("/", async (req, res) => {

@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 
 const corsOptions = {
-origin: ["http://localhost:3000", "https://svkbkstr.netlify.app/"], // allow your frontend
+origin: ["http://localhost:3000", "https://svkbkstr.netlify.app"], // allow your frontend
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // if you use cookies or auth headers

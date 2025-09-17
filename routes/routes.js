@@ -96,13 +96,15 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-//SERACH Books
+// SEARCH Books
 router.get("/search", async (req, res) => {
   try {
     const { q } = req.query;
+
     if (!q) return res.json([]); // empty query returns no results
 
     const regex = new RegExp(q, "i"); // case-insensitive search
+
     const results = await Book.find({
       $or: [
         { title: regex },
@@ -114,7 +116,7 @@ router.get("/search", async (req, res) => {
       ],
     })
       .limit(20)
-      .select("_id title author coverImage isbn"); // include isbn
+      .select("_id title author coverImage isbn"); // select fields to return
 
     res.json(results);
   } catch (err) {
@@ -122,6 +124,7 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ error: "Search failed" });
   }
 });
+
 
 
 // CREATE a new book

@@ -94,7 +94,7 @@ router.get("/search", async (req, res) => {
     const results = await Book.aggregate([
       {
         $search: {
-          index: "default", // replace with your Atlas Search index name
+          index: "Bookstoredefault", // replace with your Atlas Search index name
           autocomplete: {
             query: q,
             path: ["title", "author", "isbn", "publisher", "mainCategory", "subCategory"],

@@ -91,28 +91,20 @@ router.get("/search", async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
 
-    const results = await Book.aggregate([
-      {
-        $search: {
-          index: "Bookstoredefault", // replace with your Atlas Search index name
-          autocomplete: {
-            query: q,
-            path: ["title", "author", "isbn", "publisher", "mainCategory", "subCategory"],
-            fuzzy: { maxEdits: 2, prefixLength: 1 } // allows typos
-          }
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          author: 1,
-          coverImage: 1,
-          isbn: 1
-        }
-      },
-      { $limit: 20 }
-    ]);
+const results = await Book.aggregate([
+  {
+    $search: {
+      index: "booksIndex",  // your index name
+      autocomplete: {
+        query: q,           // the search term from req.query.q
+        path: "title",      // must match a string field in the index
+        fuzzy: { maxEdits: 2 } // optional for fuzzy search
+      }
+    }
+  },
+  { $limit: 20 },
+  { $project: { _id: 1, title: 1, author: 1, coverImage: 1, isbn: 1 } }
+]);
 
     res.json(results);
   } catch (err) {

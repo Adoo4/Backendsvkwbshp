@@ -13,15 +13,15 @@ const Book = require("../models/book");
 });
 */}
 
-{/* New GET all books*/}
+
 {/* New GET all books*/}
 router.get("/", async (req, res, next) => {
   try {
-     res.set("Cache-Control", "no-store"); // ✅ add this
+     res.set("Cache-Control", "no-store"); // upitno, provjeravati
     const {
       page = 1,
       limit = 15,
-      mainCategory,   // ✅ updated
+      mainCategory,   
       subCategory,
       language,
       isNew,
@@ -35,8 +35,8 @@ router.get("/", async (req, res, next) => {
     }
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
-    if (isNew === "true") query.isNew = true;
-    if (discount === "true") query["discount.amount"] = { $gt: 0 };
+    if (isNew === "true" || isNew === true) query.isNew = true;
+    if (discount === "true" || discount === true) query["discount.amount"] = { $gt: 0 };
 
     console.log("MongoDB query:", query);
 
@@ -93,6 +93,34 @@ router.get("/:id", async (req, res) => {
     res.json(book);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+//SERACH Books
+router.get("/search", async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q) return res.json([]); // empty query returns no results
+
+    const results = await Book.aggregate([
+      {
+        $search: {
+          index: "default", // your index name
+          text: {
+            query: q,
+            path: ["title", "author", "isbn", "publisher", "mainCategory", "subCategory"],
+            fuzzy: { maxEdits: 1 } // typo tolerance
+          }
+        }
+      },
+      { $limit: 20 } // limit results
+    ]);
+
+    res.json(results);
+  } catch (err) {
+    console.error("Search error:", err);
+    res.status(500).json({ error: "Search failed" });
   }
 });
 

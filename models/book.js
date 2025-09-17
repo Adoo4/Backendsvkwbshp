@@ -16,7 +16,8 @@ const categoryMap = {
     "Drama",
     "Poezija",
     "Klasici",
-    "Humoristička književnost"
+    "Humoristička književnost",
+    "Mitologija"
   ],
   "Literatura za djecu i mlade": [
     "Bajke i basne",

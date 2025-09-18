@@ -89,28 +89,26 @@ router.get("/related/:id", async (req, res) => {
 router.get("/search", async (req, res) => {
   try {
     const { q } = req.query;
-
-    if (!q || q.trim() === "") return res.json([]);
+    if (!q) return res.json([]);
 
     const results = await Book.aggregate([
       {
         $search: {
-          index: "default",   // <--- your Atlas Search index name
+          index: "default", // replace with your index name
           autocomplete: {
             query: q,
-            path: "title",    // <--- must be string, exactly a field in your index
-            fuzzy: { maxEdits: 2 } // allow typos
+            path: ["title", "author"], 
+            fuzzy: { maxEdits: 2 } // optional for typos
           }
         }
       },
-      { $limit: 6 }, // only top 6 suggestions
-      { $project: { _id: 1, title: 1, author: 1, coverImage: 1, isbn: 1 } }
+      { $limit: 10 }, // limit suggestions
+      { $project: { _id: 1, title: 1, author: 1, coverImage: 1 } }
     ]);
 
     res.json(results);
   } catch (err) {
     console.error("Search error full:", err);
-    console.error(err.stack);
     res.status(500).json({ error: "Search failed", details: err.message });
   }
 });

@@ -91,20 +91,20 @@ router.get("/search", async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
 
-    const results = await Book.aggregate([
-      {
-        $search: {
-          index: "default", // replace with your index name
-          autocomplete: {
-            query: q,
-            path: ["title", "author"], 
-            fuzzy: { maxEdits: 2 } // optional for typos
-          }
-        }
-      },
-      { $limit: 10 }, // limit suggestions
-      { $project: { _id: 1, title: 1, author: 1, coverImage: 1 } }
-    ]);
+const results = await Book.aggregate([
+  {
+    $search: {
+      index: "default", // your index name
+      autocomplete: {
+        query: q,
+        path: "title",       // <- must be a string
+        fuzzy: { maxEdits: 2 }
+      }
+    }
+  },
+  { $limit: 10 },
+  { $project: { _id: 1, title: 1, author: 1, coverImage: 1 } }
+]);
 
     res.json(results);
   } catch (err) {

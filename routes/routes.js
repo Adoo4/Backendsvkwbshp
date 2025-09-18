@@ -115,8 +115,8 @@ const results = await Book.aggregate([
       }
     }
   },
-  { $limit: 10 },
-  { $project: { _id: 1, title: 1, author: 1, coverImage: 1 } }
+  { $limit: 6 },
+  { $project: { _id: 1, title: 1, author: 1, coverImage: 1, description: 1, price: 1 } }
 ]);
 
 

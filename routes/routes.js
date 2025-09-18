@@ -94,7 +94,7 @@ router.get("/search", async (req, res) => {
 const results = await Book.aggregate([
   {
     $search: {
-      index: "default",
+      index: "Bookstoredefault",
       compound: {
         should: [
           {

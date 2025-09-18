@@ -94,7 +94,7 @@ router.get("/search", async (req, res) => {
 const results = await Book.aggregate([
   {
     $search: {
-      index: "booksIndex",  // your index name
+      index: "Bookstoredefault",  // your index name
       autocomplete: {
         query: q,           // the search term from req.query.q
         path: "title",      // must match a string field in the index

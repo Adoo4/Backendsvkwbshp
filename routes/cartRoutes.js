@@ -1,7 +1,8 @@
+// src/routes/cartRoutes.js
 const express = require("express");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
-const withUserId = require("../middleware/requireAuth"); // middleware function
+const requireAuth = require("../middleware/requireAuth"); // middleware array
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // ADD to cart
-router.post("/", withUserId, async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   const { bookId, quantity = 1 } = req.body;
   const book = await Book.findById(bookId);
   if (!book) return res.status(404).json({ message: "Book not found" });
@@ -33,7 +34,7 @@ router.post("/", withUserId, async (req, res) => {
 });
 
 // UPDATE quantity
-router.patch("/", withUserId, async (req, res) => {
+router.patch("/", requireAuth, async (req, res) => {
   const { bookId, quantity } = req.body;
   const cart = await Cart.findOne({ user: req.userId });
   if (!cart) return res.status(404).json({ message: "Cart not found" });
@@ -48,7 +49,7 @@ router.patch("/", withUserId, async (req, res) => {
 });
 
 // REMOVE item
-router.delete("/:bookId", withUserId, async (req, res) => {
+router.delete("/:bookId", requireAuth, async (req, res) => {
   const cart = await Cart.findOne({ user: req.userId });
   if (!cart) return res.status(404).json({ message: "Cart not found" });
 
@@ -59,7 +60,7 @@ router.delete("/:bookId", withUserId, async (req, res) => {
 });
 
 // CLEAR cart
-router.delete("/", withUserId, async (req, res) => {
+router.delete("/", requireAuth, async (req, res) => {
   await Cart.findOneAndDelete({ user: req.userId });
   res.json({ message: "Cart cleared" });
 });

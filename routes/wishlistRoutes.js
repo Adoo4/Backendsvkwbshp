@@ -6,14 +6,14 @@ const withUserId = require("../middleware/requireAuth");
 const router = express.Router();
 
 // GET wishlist
-router.get("/", withUserId(async (req, res) => {
+router.get("/", withUserId, async (req, res) => {
   const wishlist = await Wishlist.findOne({ user: req.userId }).populate("items");
   if (!wishlist) return res.json({ items: [] });
   res.json(wishlist);
-}));
+});
 
 // ADD to wishlist
-router.post("/", withUserId(async (req, res) => {
+router.post("/", withUserId, async (req, res) => {
   const { bookId } = req.body;
   const book = await Book.findById(bookId);
   if (!book) return res.status(404).json({ message: "Book not found" });
@@ -31,10 +31,10 @@ router.post("/", withUserId(async (req, res) => {
   await wishlist.save();
   await wishlist.populate("items");
   res.status(201).json(wishlist);
-}));
+});
 
 // REMOVE from wishlist
-router.delete("/:bookId", withUserId(async (req, res) => {
+router.delete("/:bookId", withUserId, async (req, res) => {
   const wishlist = await Wishlist.findOne({ user: req.userId });
   if (!wishlist) return res.status(404).json({ message: "Wishlist not found" });
 
@@ -42,12 +42,12 @@ router.delete("/:bookId", withUserId(async (req, res) => {
   await wishlist.save();
   await wishlist.populate("items");
   res.json(wishlist);
-}));
+});
 
 // CLEAR wishlist
-router.delete("/", withUserId(async (req, res) => {
+router.delete("/", withUserId, async (req, res) => {
   await Wishlist.findOneAndDelete({ user: req.userId });
   res.json({ message: "Wishlist cleared" });
-}));
+});
 
 module.exports = router;

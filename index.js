@@ -13,8 +13,12 @@ const cartRoutes = require("./routes/cartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 
 const app = express();
+
 const PORT = process.env.PORT || 5000;
 
+
+console.log("Publishable:", process.env.CLERK_PUBLISHABLE_KEY);
+console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing");
 // ---------------- Middleware ----------------
 app.use(cors());
 

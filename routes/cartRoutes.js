@@ -8,6 +8,7 @@ const router = express.Router();
 
 // GET user's cart
 router.get("/", requireAuth, async (req, res) => {
+   console.log("UserId from middleware:", req.userId, "ClerkId:", req.auth.userId);
   const cart = await Cart.findOne({ user: req.userId }).populate("items.book");
   if (!cart) return res.json({ items: [] });
   res.json(cart);

@@ -1,17 +1,24 @@
-// middleware/requireAuth.js
-// middleware/requireAuth.js
 const { requireAuth } = require("@clerk/express");
 const User = require("../models/user");
 
 module.exports = [
-  requireAuth(),
+  requireAuth(), // Clerk JWT provjera
   async (req, res, next) => {
     try {
-      // find Mongo user linked with Clerk ID
-      const user = await User.findOne({ clerkId: req.auth.userId });
+      // provjera da li postoji Mongo user sa clerkId
+      let user = await User.findOne({ clerkId: req.auth.userId });
+
       if (!user) {
-        return res.status(401).json({ message: "User not found in DB" });
+        // ako ne postoji, kreiraj novog korisnika
+        user = new User({
+          clerkId: req.auth.userId,
+          email: req.auth.sessionClaims.email_addresses?.[0]?.email_address || "",
+          name: req.auth.sessionClaims.first_name || "NoName",
+        });
+        await user.save();
+        console.log("Created new Mongo user for Clerk:", user._id);
       }
+
       req.userId = user._id; // attach Mongo ID
       next();
     } catch (err) {

@@ -1,5 +1,5 @@
 const express = require("express");
-const { requireAuth } = require("@clerk/express");
+const requireAuth = require("./middleware/requireAuth");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");

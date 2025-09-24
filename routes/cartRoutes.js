@@ -6,7 +6,7 @@ const withUserId = require("../middleware/requireAuth"); // middleware function
 const router = express.Router();
 
 // GET user's cart
-router.get("/", withUserId, async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
   const cart = await Cart.findOne({ user: req.userId }).populate("items.book");
   if (!cart) return res.json({ items: [] });
   res.json(cart);

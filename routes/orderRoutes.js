@@ -2,7 +2,7 @@ const express = require("express");
 const Order = require("../models/order");
 const Cart = require("../models/cart");
 const User = require("../models/user");
-const requireAuth = require("../middleware/requireAuth");
+const requireAuth = require("../middleware/requireAuth"); // array
 
 const router = express.Router();
 
@@ -33,3 +33,4 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+

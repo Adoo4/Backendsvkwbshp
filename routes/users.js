@@ -5,7 +5,8 @@ const { requireAuth } = require("@clerk/express");
 const router = express.Router();
 const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
 
-router.put("/update-profile", requireAuth(), async (req, res) => {
+// PUT /update-profile
+router.put("/update-profile", requireAuth, async (req, res) => {
   try {
     const userId = req.auth.userId; // securely from Clerk JWT
     const { form } = req.body;

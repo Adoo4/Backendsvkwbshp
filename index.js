@@ -1,4 +1,5 @@
 const express = require("express");
+const { requireAuth } = require("@clerk/express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -8,6 +9,8 @@ require("dotenv").config();
 
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
+const cartRoutes = require("./routes/cartRoutes");
+const wishlistRoutes = require("./routes/wishlistRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,6 +46,8 @@ app.get("/", (req, res) => {
 });
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/cart", requireAuth(), cartRoutes);
+app.use("/api/wishlist", requireAuth(), wishlistRoutes);
 
 // ---------------- DB Connection ----------------
 const connectDB = async () => {

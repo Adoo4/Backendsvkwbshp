@@ -1,19 +1,20 @@
 const express = require("express");
 const { Clerk } = require("@clerk/clerk-sdk-node");
+const { requireAuth } = require("@clerk/express");
 
 const router = express.Router();
 const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
-console.log("User routes loaded");
-// PUT /update-profile
-router.put("/update-profile", async (req, res) => {
-  try {
-    const { userId, form } = req.body;
 
-    if (!userId || !form) {
-      return res.status(400).json({ error: "Missing userId or form data" });
+router.put("/update-profile", requireAuth(), async (req, res) => {
+  try {
+    const userId = req.auth.userId; // securely from Clerk JWT
+    const { form } = req.body;
+
+    if (!form) {
+      return res.status(400).json({ error: "Missing form data" });
     }
 
-    // Update the Clerk user profile
+    // Update Clerk user profile
     await clerk.users.updateUser(userId, {
       privateMetadata: { ...form },
     });

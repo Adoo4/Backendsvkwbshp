@@ -1,19 +1,19 @@
 const express = require("express");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
-const withUserId = require("../middleware/requireAuth");
+const withUserId = require("../middleware/requireAuth"); // middleware function
 
 const router = express.Router();
 
 // GET user's cart
-router.get("/", withUserId(async (req, res) => {
+router.get("/", withUserId, async (req, res) => {
   const cart = await Cart.findOne({ user: req.userId }).populate("items.book");
   if (!cart) return res.json({ items: [] });
   res.json(cart);
-}));
+});
 
 // ADD to cart
-router.post("/", withUserId(async (req, res) => {
+router.post("/", withUserId, async (req, res) => {
   const { bookId, quantity = 1 } = req.body;
   const book = await Book.findById(bookId);
   if (!book) return res.status(404).json({ message: "Book not found" });
@@ -30,10 +30,10 @@ router.post("/", withUserId(async (req, res) => {
   await cart.save();
   await cart.populate("items.book");
   res.status(201).json(cart);
-}));
+});
 
 // UPDATE quantity
-router.patch("/", withUserId(async (req, res) => {
+router.patch("/", withUserId, async (req, res) => {
   const { bookId, quantity } = req.body;
   const cart = await Cart.findOne({ user: req.userId });
   if (!cart) return res.status(404).json({ message: "Cart not found" });
@@ -45,10 +45,10 @@ router.patch("/", withUserId(async (req, res) => {
   await cart.save();
   await cart.populate("items.book");
   res.json(cart);
-}));
+});
 
 // REMOVE item
-router.delete("/:bookId", withUserId(async (req, res) => {
+router.delete("/:bookId", withUserId, async (req, res) => {
   const cart = await Cart.findOne({ user: req.userId });
   if (!cart) return res.status(404).json({ message: "Cart not found" });
 
@@ -56,12 +56,12 @@ router.delete("/:bookId", withUserId(async (req, res) => {
   await cart.save();
   await cart.populate("items.book");
   res.json(cart);
-}));
+});
 
 // CLEAR cart
-router.delete("/", withUserId(async (req, res) => {
+router.delete("/", withUserId, async (req, res) => {
   await Cart.findOneAndDelete({ user: req.userId });
   res.json({ message: "Cart cleared" });
-}));
+});
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const express = require("express");
-const Cart = require("../models/Cart");
+const Cart = require("../models/cart");
 const Book = require("../models/book");
 const requireAuth = require("../middleware/requireAuth");
 

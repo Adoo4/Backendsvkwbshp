@@ -46,8 +46,8 @@ app.get("/", (req, res) => {
 });
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/cart", requireAuth(), cartRoutes);
-app.use("/api/wishlist", requireAuth(), wishlistRoutes);
+app.use("/api/cart", requireAuth, cartRoutes);
+app.use("/api/wishlist", requireAuth, wishlistRoutes);
 
 // ---------------- DB Connection ----------------
 const connectDB = async () => {

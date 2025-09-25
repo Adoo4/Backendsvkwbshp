@@ -1,22 +1,8 @@
-// models/Wishlist.js
 const mongoose = require("mongoose");
 
-const wishlistSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",      // reference to User schema
-      required: true,
-      unique: true,     // each user has one wishlist
-    },
-    items: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Book",    // reference to Book schema
-      }
-    ],
-  },
-  { timestamps: true }
-);
+const WishlistSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  items: [{ type: mongoose.Schema.Types.ObjectId, ref: "Book" }],
+});
 
-module.exports = mongoose.model("Wishlist", wishlistSchema);
+module.exports = mongoose.model("Wishlist", WishlistSchema);

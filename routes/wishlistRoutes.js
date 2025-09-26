@@ -8,10 +8,12 @@ const router = express.Router();
 // GET user's wishlist
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId: req.userId }).populate("items");
+    const wishlist = await Wishlist.findOne({ userId: req.userId })
+      .populate("items"); // 👈 this turns IDs into full Book objects
+
     if (!wishlist) return res.json({ items: [] });
-    res.json({ items: wishlist.items }); // 👈 only send items array
-    //old   res.json(wishlist);
+
+    res.json({ items: wishlist.items });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching wishlist" });

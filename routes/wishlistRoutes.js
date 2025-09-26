@@ -10,7 +10,8 @@ router.get("/", requireAuth, async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ userId: req.userId }).populate("items");
     if (!wishlist) return res.json({ items: [] });
-    res.json(wishlist);
+    res.json({ items: wishlist.items }); // 👈 only send items array
+    //old   res.json(wishlist);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error fetching wishlist" });

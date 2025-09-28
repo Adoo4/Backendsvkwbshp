@@ -1,29 +1,30 @@
 const { Clerk } = require("@clerk/clerk-sdk-node");
 const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
+const User = require("../models/user");
 
 module.exports = [
-  requireAuth(), // Clerk JWT provjera
+  requireAuth(),
   async (req, res, next) => {
     try {
-      // Try to find Mongo user
-      let user = await User.findOne({ clerkId: req.auth.userId });
+      const clerkUser = await clerk.users.getUser(req.auth.userId);
 
-      if (!user) {
-        // Fetch full Clerk user
-        const clerkUser = await clerk.users.getUser(req.auth.userId);
-        console.log("Clerk user:", clerkUser);
+      const email =
+        clerkUser.emailAddresses.find(e => e.primary)?.emailAddress ||
+        clerkUser.emailAddresses[0]?.emailAddress ||
+        "";
 
-        user = new User({
+      // upsert user
+      const user = await User.findOneAndUpdate(
+        { clerkId: clerkUser.id },
+        {
           clerkId: clerkUser.id,
-          email: clerkUser.emailAddresses.find(e => e.primary)?.emailAddress || "",
+          email,
           name: clerkUser.firstName || "NoName",
-        });
+        },
+        { new: true, upsert: true } // create if not exist
+      );
 
-        await user.save();
-        console.log("Created new Mongo user for Clerk:", user._id);
-      }
-
-      req.userId = user._id; // attach Mongo ID
+      req.userId = user._id;
       next();
     } catch (err) {
       console.error("Auth middleware error:", err);
@@ -31,3 +32,4 @@ module.exports = [
     }
   },
 ];
+

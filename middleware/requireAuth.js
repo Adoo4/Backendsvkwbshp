@@ -11,6 +11,7 @@ module.exports = [
       if (!user) {
         // Fetch full Clerk user
         const clerkUser = await clerk.users.getUser(req.auth.userId);
+        console.log("Clerk user:", clerkUser);
 
         user = new User({
           clerkId: clerkUser.id,

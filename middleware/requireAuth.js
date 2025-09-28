@@ -1,20 +1,23 @@
-const { requireAuth } = require("@clerk/express");
-const User = require("../models/user");
+const { Clerk } = require("@clerk/clerk-sdk-node");
+const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
 
 module.exports = [
   requireAuth(), // Clerk JWT provjera
   async (req, res, next) => {
     try {
-      // provjera da li postoji Mongo user sa clerkId
+      // Try to find Mongo user
       let user = await User.findOne({ clerkId: req.auth.userId });
 
       if (!user) {
-        // ako ne postoji, kreiraj novog korisnika
+        // Fetch full Clerk user
+        const clerkUser = await clerk.users.getUser(req.auth.userId);
+
         user = new User({
-          clerkId: req.auth.userId,
-          email: req.auth.sessionClaims.email_addresses?.[0]?.email_address || "",
-          name: req.auth.sessionClaims.first_name || "NoName",
+          clerkId: clerkUser.id,
+          email: clerkUser.emailAddresses.find(e => e.primary)?.emailAddress || "",
+          name: clerkUser.firstName || "NoName",
         });
+
         await user.save();
         console.log("Created new Mongo user for Clerk:", user._id);
       }

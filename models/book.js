@@ -41,7 +41,7 @@ const categoryMap = {
     "Biografije i autobiografije",
     "Eseji",
     "Putopisi",
-    "Istorija",
+    "Historija",
     "Filozofija",
     "Religija i duhovnost",
     "Politika i društvo"

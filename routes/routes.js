@@ -70,19 +70,19 @@ router.get("/related/:id", async (req, res) => {
 
   if (!category) return res.status(400).json({ message: "Category is required" });
 
-  try {
-    const books = await Book.find({
-      mainCategory: category,
-      _id: { $ne: id } // exclude current book
-    })
-      .limit(4) // optional: limit number of suggestions
-      .select("_id title coverImage author");
+ try {
+  const books = await Book.aggregate([
+    { $match: { mainCategory: category, _id: { $ne: id } } }, // exclude current book
+    { $sample: { size: 10 } }, // randomly select 10 books
+    { $project: { _id: 1, title: 1, coverImage: 1, author: 1 } } // select fields
+  ]);
 
-    res.status(200).json(books);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching related books" });
-  }
+  res.status(200).json(books);
+} catch (err) {
+  console.error(err);
+  res.status(500).json({ error: "Failed to fetch related books" });
+}
+
 });
 
 // SEARCH Books

@@ -101,23 +101,36 @@ const results = await Book.aggregate([
             autocomplete: {
               query: q,
               path: "title",
-              fuzzy: { maxEdits: 2 }
+              fuzzy: { maxEdits: 1 } // only 1 typo allowed
             }
           },
           {
             autocomplete: {
               query: q,
               path: "author",
-              fuzzy: { maxEdits: 2 }
+              fuzzy: { maxEdits: 1 }
             }
           }
-        ]
+        ],
+        minimumShouldMatch: 1, // must match at least one
       }
     }
   },
   { $limit: 6 },
-  { $project: { _id: 1, title: 1, author: 1, coverImage: 1, description: 1, price: 1 } }
+  {
+    $project: {
+      _id: 1,
+      title: 1,
+      author: 1,
+      coverImage: 1,
+      description: 1,
+      price: 1,
+      score: { $meta: "searchScore" }
+    }
+  },
+  { $sort: { score: -1 } } // sort by relevance
 ]);
+
 
 
     res.json(results);

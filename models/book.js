@@ -116,9 +116,18 @@ const bookSchema = new mongoose.Schema(
     isNew: {
       type: Boolean,
       default: false
+    }, 
+     quantity: {
+      type: Number,
+      default: 1,
+      min: 0
     }
+
   },
   { timestamps: true }
+  
 );
+
+
 
 module.exports = mongoose.model("Book", bookSchema);

@@ -73,7 +73,7 @@ router.get("/related/:id", async (req, res) => {
  try {
   const books = await Book.aggregate([
     { $match: { mainCategory: category, _id: { $ne: id } } }, // exclude current book
-    { $sample: { size: 10 } }, // randomly select 10 books
+    { $sample: { size: 7 } }, // randomly select 10 books
     { $project: { _id: 1, title: 1, coverImage: 1, author: 1 } } // select fields
   ]);
 

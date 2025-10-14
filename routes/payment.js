@@ -3,9 +3,8 @@ const crypto = require("crypto");
 
 const router = express.Router();
 
-// ✅ Replace with real credentials from Monri dashboard
-const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // data-authenticity-token
-const MONRI_KEY = process.env.MONRI_KEY; // key for digest
+const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN;
+const MONRI_KEY = process.env.MONRI_KEY;
 
 router.post("/create-payment", async (req, res) => {
   try {
@@ -17,6 +16,7 @@ router.post("/create-payment", async (req, res) => {
 
     const order_number = Date.now().toString(); // Unique per transaction
 
+    // Digest calculation
     const digest = crypto
       .createHash("sha512")
       .update(MONRI_KEY + order_number + amount + currency)
@@ -38,6 +38,7 @@ router.post("/create-payment", async (req, res) => {
 
 router.post("/callback", (req, res) => {
   console.log("✅ Monri callback received:", req.body);
+  // Optional: validate digest here
   res.sendStatus(200);
 });
 

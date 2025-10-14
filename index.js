@@ -5,12 +5,14 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+
 require("dotenv").config();
 
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
+const paymentRoutes = require("./routes/payment");
 
 const app = express();
 
@@ -52,6 +54,7 @@ app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/cart", requireAuth, cartRoutes);
 app.use("/api/wishlist", requireAuth, wishlistRoutes);
+app.use("/api/payment", paymentRoutes);
 // ---------------- DB Connection ----------------
 const connectDB = async () => {
   try {

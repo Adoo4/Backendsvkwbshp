@@ -37,8 +37,7 @@ router.post("/create-payment", async (req, res) => {
 });
 
 router.post("/callback", (req, res) => {
-  console.log("✅ Monri callback received:", req.body);
-  // Optional: validate digest here
+  console.log("✅ Monri callback received:", req.headers, req.body);
   res.sendStatus(200);
 });
 

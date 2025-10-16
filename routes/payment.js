@@ -1,6 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
-const fetch = require("node-fetch"); // ensure installed: npm i node-fetch
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const router = express.Router();
 

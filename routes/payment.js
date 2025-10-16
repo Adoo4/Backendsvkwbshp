@@ -1,3 +1,14 @@
+
+const express = require("express");
+const crypto = require("crypto");
+
+const router = express.Router();   // ✅ THIS LINE WAS MISSING
+
+const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN;
+const MONRI_KEY = process.env.MONRI_KEY;
+
+
+
 router.post("/create-payment", async (req, res) => {
   try {
     const { amount, currency, customer } = req.body;

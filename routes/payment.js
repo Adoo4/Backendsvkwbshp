@@ -41,4 +41,20 @@ router.post("/callback", (req, res) => {
   res.sendStatus(200);
 });
 
+router.post("/payment-complete", (req, res) => {
+  const transaction = req.body.transaction_response; // JSON string
+  const data = JSON.parse(transaction);
+
+  // Save to DB
+  Transaction.create(data)
+    .then(() => {
+      res.send("Payment processed successfully");
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).send("Error saving transaction");
+    });
+});
+
+
 module.exports = router;

@@ -1,12 +1,3 @@
-const express = require("express");
-const crypto = require("crypto");
-
-
-const router = express.Router();
-
-const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // Bearer token
-const MONRI_KEY = process.env.MONRI_KEY; // Since you're calculating signature
-
 router.post("/create-payment", async (req, res) => {
   try {
     const { amount, currency, customer } = req.body;
@@ -18,26 +9,23 @@ router.post("/create-payment", async (req, res) => {
     const timestamp = Date.now().toString();
     const order_number = "ORDER_" + timestamp;
 
-    // Build request payload for Monri Lightbox:
     const payload = {
       transaction_type: "purchase",
       order_number,
       amount,
       currency,
-      customer, // Example: { ch_full_name, ch_email, ... }
+      customer,
     };
 
-    // Signature = timestamp + order_number + amount + currency
     const signature = crypto
       .createHmac("sha512", MONRI_KEY)
       .update(timestamp + order_number + amount + currency)
       .digest("hex");
 
-    // Call Monri's Payment Session API:
     const monriRes = await fetch("https://ipgtest.monri.com/api/v2/payment/new", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${MONRI_AUTH_TOKEN}`,
+        Authorization: `Bearer ${MONRI_AUTH_TOKEN}`,
         "Content-Type": "application/json",
         "X-Monri-Timestamp": timestamp,
         "X-Monri-Signature": signature,
@@ -45,9 +33,15 @@ router.post("/create-payment", async (req, res) => {
       body: JSON.stringify(payload),
     });
 
+    if (!monriRes.ok) {
+      const errorText = await monriRes.text();
+      console.error("❌ Monri rejected the request:", monriRes.status, errorText);
+      return res.status(500).json({ message: "Monri API error", details: errorText });
+    }
+
     const monriData = await monriRes.json();
     console.log("📩 Monri API Response:", monriData);
-console.log("🔵 Status:", monriRes.status);
+    console.log("🔵 Status:", monriRes.status);
 
     if (!monriData?.client_secret) {
       console.error("❌ Monri did not return client_secret:", monriData);
@@ -55,15 +49,9 @@ console.log("🔵 Status:", monriRes.status);
     }
 
     res.json({ client_secret: monriData.client_secret });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Payment init failed" });
+    console.error("❌ Backend crash:", err);
+    res.status(500).json({ message: err.message || "Payment init failed" });
   }
 });
-
-router.post("/callback", (req, res) => {
-  console.log("✅ Monri callback received:", req.headers, req.body);
-  res.sendStatus(200);
-});
-
-module.exports = router;

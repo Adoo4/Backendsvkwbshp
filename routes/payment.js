@@ -1,8 +1,8 @@
 const express = require("express");
 const crypto = require("crypto");
-const fetch = require("node-fetch"); // make sure node-fetch is installed
+const fetch = require("node-fetch"); // ensure installed: npm i node-fetch
 
-const router = express.Router(); // ✅ this was missing
+const router = express.Router();
 
 const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN;
 const MONRI_KEY = process.env.MONRI_KEY;
@@ -12,10 +12,12 @@ router.post("/create-payment", async (req, res) => {
     let { amount, currency, customer } = req.body;
 
     if (!amount || !currency || !customer) {
-      return res.status(400).json({ message: "Missing amount, currency or customer info" });
+      return res
+        .status(400)
+        .json({ message: "Missing amount, currency, or customer info" });
     }
 
-    // Make sure amount is an integer (minor units)
+    // Make sure amount is integer (minor units)
     amount = parseInt(amount);
 
     const timestamp = Date.now().toString();
@@ -55,7 +57,18 @@ router.post("/create-payment", async (req, res) => {
       body: JSON.stringify(payload),
     });
 
-    const monriData = await monriRes.json();
+    // Try parsing JSON, but fallback to text if Monri returns HTML
+    let monriData;
+    try {
+      monriData = await monriRes.json();
+    } catch (err) {
+      const text = await monriRes.text();
+      console.error("❌ Monri returned non-JSON response:", text);
+      return res
+        .status(500)
+        .json({ message: "Monri API returned non-JSON response", details: text });
+    }
+
     console.log("📩 Monri API Response:", monriData);
 
     if (!monriData?.client_secret) {
@@ -64,7 +77,6 @@ router.post("/create-payment", async (req, res) => {
     }
 
     res.json({ client_secret: monriData.client_secret });
-
   } catch (err) {
     console.error("❌ Backend crash:", err);
     res.status(500).json({ message: err.message || "Payment init failed" });

@@ -1,33 +1,44 @@
-
 const express = require("express");
 const crypto = require("crypto");
+const fetch = require("node-fetch"); // make sure node-fetch is installed
 
-const router = express.Router();   // ✅ THIS LINE WAS MISSING
+const router = express.Router(); // ✅ this was missing
 
 const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN;
 const MONRI_KEY = process.env.MONRI_KEY;
 
-
-
 router.post("/create-payment", async (req, res) => {
   try {
-    const { amount, currency, customer } = req.body;
+    let { amount, currency, customer } = req.body;
 
-    if (!amount || !currency) {
-      return res.status(400).json({ message: "Missing amount or currency" });
+    if (!amount || !currency || !customer) {
+      return res.status(400).json({ message: "Missing amount, currency or customer info" });
     }
+
+    // Make sure amount is an integer (minor units)
+    amount = parseInt(amount);
 
     const timestamp = Date.now().toString();
     const order_number = "ORDER_" + timestamp;
 
+    // Flatten customer fields according to Monri docs
     const payload = {
       transaction_type: "purchase",
       order_number,
       amount,
       currency,
-      customer,
+      ch_full_name: customer.ch_full_name,
+      ch_email: customer.ch_email,
+      ch_address: customer.ch_address,
+      ch_city: customer.ch_city,
+      ch_zip: customer.ch_zip,
+      ch_country: customer.ch_country,
+      ch_phone: customer.ch_phone,
     };
 
+    console.log("📦 Payload to Monri:", payload);
+
+    // Generate HMAC signature
     const signature = crypto
       .createHmac("sha512", MONRI_KEY)
       .update(timestamp + order_number + amount + currency)
@@ -44,18 +55,11 @@ router.post("/create-payment", async (req, res) => {
       body: JSON.stringify(payload),
     });
 
-    if (!monriRes.ok) {
-      const errorText = await monriRes.text();
-      console.error("❌ Monri rejected the request:", monriRes.status, errorText);
-      return res.status(500).json({ message: "Monri API error", details: errorText });
-    }
-
     const monriData = await monriRes.json();
     console.log("📩 Monri API Response:", monriData);
-    console.log("🔵 Status:", monriRes.status);
 
     if (!monriData?.client_secret) {
-      console.error("❌ Monri did not return client_secret:", monriData);
+      console.error("❌ No client_secret returned:", monriData);
       return res.status(500).json({ message: "Failed to create Monri session" });
     }
 
@@ -66,3 +70,5 @@ router.post("/create-payment", async (req, res) => {
     res.status(500).json({ message: err.message || "Payment init failed" });
   }
 });
+
+module.exports = router;

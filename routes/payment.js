@@ -46,6 +46,8 @@ router.post("/create-payment", async (req, res) => {
     });
 
     const monriData = await monriRes.json();
+    console.log("📩 Monri API Response:", monriData);
+console.log("🔵 Status:", monriRes.status);
 
     if (!monriData?.client_secret) {
       console.error("❌ Monri did not return client_secret:", monriData);

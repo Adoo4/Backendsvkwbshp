@@ -22,15 +22,17 @@ const PORT = process.env.PORT || 5000;
 console.log("Publishable:", process.env.CLERK_PUBLISHABLE_KEY);
 console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing");
 // ---------------- Middleware ----------------
-app.use(cors());
+
 
 const corsOptions = {
-origin: ["http://localhost:3000", "https://svkbkstr.netlify.app"], // allow your frontend
+  origin: ["http://localhost:3000", "https://svkbkstr.netlify.app"],
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // if you use cookies or auth headers
+  credentials: true,
 };
+
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));  // ✅ Handles preflight
 app.use(express.json());
 
 // Security: sets secure HTTP headers

@@ -42,7 +42,7 @@ router.post("/create-payment", async (req, res) => {
       .update(timestamp + order_number + amount + currency)
       .digest("hex");
 
-    const monriRes = await fetch("https://ipgtest.monri.com/api/v2/payment/new", {
+    const monriRes = await fetch("https://ipgtest.monri.com/v2/payment/new", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${MONRI_AUTH_TOKEN}`,

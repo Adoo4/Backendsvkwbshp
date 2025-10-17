@@ -14,18 +14,11 @@ router.post("/create-payment", async (req, res) => {
     }
 
     const order_number = Date.now().toString();
-    const timestamp = Math.floor(Date.now() / 1000).toString();
 
+    // ✅ Digest for older Lightbox setup
     const digest = crypto
       .createHash("sha512")
-      .update(
-        MONRI_KEY +
-          timestamp +
-          MONRI_AUTH_TOKEN +
-          order_number +
-          amount +
-          currency
-      )
+      .update(MONRI_KEY + order_number + amount + currency)
       .digest("hex");
 
     res.json({
@@ -34,7 +27,6 @@ router.post("/create-payment", async (req, res) => {
       amount,
       currency,
       digest,
-      timestamp,
       customer,
     });
   } catch (err) {

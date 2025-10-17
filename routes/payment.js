@@ -60,12 +60,13 @@ router.post("/create-payment", async (req, res) => {
 
     const order_number = Date.now().toString();
     const amountStr = amount.toString();
-    const order_info = `Order #${order_number}`; // ✅ at least 3 chars
+    const order_info = `Order #${order_number}`;
+    const transaction_type = "purchase"; // must be included
 
-    // ✅ include order_info in digest
+    // Digest must include transaction_type
     const digest = crypto
       .createHash("sha512")
-      .update(MONRI_KEY + order_number + amountStr + currency + order_info)
+      .update(MONRI_KEY + order_number + amountStr + currency + order_info + transaction_type)
       .digest("hex");
 
     res.json({
@@ -75,6 +76,7 @@ router.post("/create-payment", async (req, res) => {
       currency,
       order_info,
       digest,
+      transaction_type, // send to frontend
       customer,
     });
   } catch (err) {

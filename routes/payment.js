@@ -14,17 +14,17 @@ router.post("/create-payment", async (req, res) => {
     }
 
     const order_number = Date.now().toString();
+    const amountStr = amount.toString(); // ✅ ensure STRING
 
-    // ✅ Digest for older Lightbox setup
     const digest = crypto
       .createHash("sha512")
-      .update(MONRI_KEY + order_number + amount + currency)
+      .update(MONRI_KEY + order_number + amountStr + currency)
       .digest("hex");
 
     res.json({
       authenticity_token: MONRI_AUTH_TOKEN,
       order_number,
-      amount,
+      amount: amountStr,
       currency,
       digest,
       customer,
@@ -35,21 +35,9 @@ router.post("/create-payment", async (req, res) => {
   }
 });
 
-
 router.post("/payment-complete", (req, res) => {
-  const transaction = req.body.transaction_response; // JSON string
-  const data = JSON.parse(transaction);
-
-  // Save to DB
-  Transaction.create(data)
-    .then(() => {
-      res.send("Payment processed successfully");
-    })
-    .catch(err => {
-      console.error(err);
-      res.status(500).send("Error saving transaction");
-    });
+  console.log("Payment-complete full body:", req.body);
+  res.send("Payment processed successfully");
 });
-
 
 module.exports = router;

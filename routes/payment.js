@@ -59,11 +59,11 @@ router.post("/create-payment", async (req, res) => {
     }
 
     const order_number = Date.now().toString();
-    const amountStr = amount.toString();
+    const amountStr = amount.toString(); // must be string
     const order_info = `Order #${order_number}`;
-    const transaction_type = "purchase"; // must be included
+    const transaction_type = "purchase"; // required
 
-    // Digest must include transaction_type
+    // Correct digest calculation
     const digest = crypto
       .createHash("sha512")
       .update(MONRI_KEY + order_number + amountStr + currency + order_info + transaction_type)
@@ -75,8 +75,8 @@ router.post("/create-payment", async (req, res) => {
       amount: amountStr,
       currency,
       order_info,
+      transaction_type,
       digest,
-      transaction_type, // send to frontend
       customer,
     });
   } catch (err) {
@@ -85,9 +85,5 @@ router.post("/create-payment", async (req, res) => {
   }
 });
 
-router.post("/payment-complete", (req, res) => {
-  console.log("Payment-complete full body:", req.body);
-  res.send("Payment processed successfully");
-});
-
 module.exports = router;
+

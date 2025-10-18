@@ -55,58 +55,37 @@ const CANCEL_URL = process.env.MONRI_CANCEL_URL;     // e.g., https://yourdomain
 const CALLBACK_URL = process.env.MONRI_CALLBACK_URL; // e.g., https://yourdomain.com/callback
 
 // Create a payment request for Monri WebPay Form
-router.post("/create-payment", async (req, res) => {
-  try {
-    const { amount, currency, customer, order_info } = req.body;
+import crypto from 'crypto';
+import axios from 'axios';
 
-    if (!amount || !currency) {
-      return res.status(400).json({ message: "Missing amount or currency" });
-    }
+const merchantKey = process.env.MONRI_KEY;
+const authenticityToken = process.env.MONRI_AUTH_TOKEN;
+const baseUrl = 'https://ipgtest.monri.com'; // Test env
+const timestamp = Math.floor(Date.now() / 1000);
 
-    // Generate a unique order number
-    const order_number = Date.now().toString();
+const data = {
+  amount: 8200, // minor units, 82 BAM = 8200
+  order_number: '1760745476195',
+  currency: 'BAM',
+  transaction_type: 'purchase',
+  order_info: 'Order info example',
+  scenario: 'charge',
+};
 
-    // Amount in minor units (e.g., cents)
-    const amountStr = amount.toString();
+const bodyAsString = JSON.stringify(data);
 
-    // Digest formula: SHA512(MONRI_KEY + order_number + amount + currency)
-    const digest = crypto
-      .createHash("sha512")
-      .update(MONRI_KEY + order_number + amountStr + currency)
-      .digest("hex");
+const digest = crypto
+  .createHash('sha512')
+  .update(merchantKey + timestamp + authenticityToken + bodyAsString)
+  .digest('hex');
 
-    // Optional: fields config to lock email and full name
-    const custom_attributes = JSON.stringify({
-      fields_config: {
-        fields: [
-          { name: "ch_email", readonly: true },
-          { name: "ch_full_name", readonly: true }
-        ]
-      }
-    });
+const authorizationHeader = `WP3-v2 ${authenticityToken} ${timestamp} ${digest}`;
 
-    // Return all parameters for front-end to build POST form
-    res.json({
-      authenticity_token: MONRI_AUTH_TOKEN,
-      order_number,
-      amount: amountStr,
-      currency,
-      digest,
-      transaction_type: "purchase", // or "authorize"
-      customer_name: customer?.full_name || "",
-      customer_email: customer?.email || "",
-      order_info: order_info || "Purchase from your store",
-      success_url_override: SUCCESS_URL,
-      cancel_url_override: CANCEL_URL,
-      callback_url_override: CALLBACK_URL,
-      custom_attributes,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Payment init failed" });
-  }
+const response = await axios.post(`${baseUrl}/v2/payment/new`, data, {
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: authorizationHeader,
+  },
 });
 
-module.exports = router;
-
-
+console.log(response.data);

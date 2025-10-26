@@ -1,25 +1,20 @@
 const express = require("express");
 const crypto = require("crypto");
-const axios = require("axios");
-
 const router = express.Router();
 
-// Monri credentials & URLs
-const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // public / slave token
-const MONRI_KEY = process.env.MONRI_KEY;               // private / master key for digest
+const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // authenticity token
+const MONRI_KEY = process.env.MONRI_KEY;               // merchant key
+
 const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://yourfrontend.com/success";
 const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://yourfrontend.com/cancel";
 const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://yourbackend.com/api/payment/callback";
 
-// Base URL depending on environment
-const MONRI_BASE_URL = process.env.NODE_ENV === "production"
-  ? "https://ipg.monri.com"
-  : "https://ipgtest.monri.com";
+const MONRI_FORM_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://ipg.monri.com/v2/form"
+    : "https://ipgtest.monri.com/v2/form";
 
-/**
- * STEP 1: Create payment via Monri API (server-side)
- */
-router.post("/create-payment", async (req, res) => {
+router.post("/create-payment", (req, res) => {
   try {
     const { amount, currency, customer } = req.body;
 
@@ -28,59 +23,40 @@ router.post("/create-payment", async (req, res) => {
     }
 
     const order_number = `ORD-${Date.now()}`;
-    const order_info = `Order ${order_number}`;
-    const amountMinor = Math.round(amount * 100); // minor units
+    const amountMinor = Math.round(amount * 100);
 
-    const payload = {
+    // Compute digest for redirect form
+    const digest = crypto
+      .createHash("sha512")
+      .update(MONRI_KEY + order_number + amountMinor + currency)
+      .digest("hex");
+
+    const formFields = {
+      utf8: "✓",
+      authenticity_token: MONRI_AUTH_TOKEN,
+      ch_full_name: customer.full_name,
+      ch_email: customer.email,
+      order_info: `Order ${order_number}`,
       amount: amountMinor,
       order_number,
       currency,
       transaction_type: "purchase",
-      order_info,
-      ch_full_name: customer.full_name,
-      ch_email: customer.email,
+      digest,
       language: "en",
-      callback_url: MONRI_CALLBACK_URL,
-      cancel_url: MONRI_CANCEL_URL,
       success_url_override: MONRI_RETURN_URL,
+      cancel_url: MONRI_CANCEL_URL,
+      callback_url: MONRI_CALLBACK_URL,
     };
 
-    const timestamp = Math.floor(Date.now() / 1000);
-    const bodyAsString = JSON.stringify(payload);
-    const digest = crypto
-  .createHash("sha512")
-  .update(MONRI_KEY + timestamp + MONRI_AUTH_TOKEN + bodyAsString)
-  .digest("hex");
-
-    const authorizationHeader = `WP3-v2 ${MONRI_AUTH_TOKEN} ${timestamp} ${digest}`;
-
-    const response = await axios.post(`${MONRI_BASE_URL}/v2/payment/new`, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorizationHeader,
-      },
+    res.json({
+      form_action: MONRI_FORM_URL,
+      form_fields: formFields,
     });
-
-    console.log("Monri API response:", response.data); // log to see structure
-
-    // Use the correct field from Monri response
-    const paymentUrl =
-      response.data?.payment?.checkout_url || response.data?.checkout_url;
-
-    if (!paymentUrl) {
-      return res.status(500).json({
-        message: "Monri API did not return a checkout URL",
-        data: response.data,
-      });
-    }
-
-    res.status(200).json({ payment_url: paymentUrl });
-  } catch (error) {
-    console.error("Monri create-payment error:", error.response?.data || error.message);
-    res.status(500).json({ message: "Server error while creating payment" });
+  } catch (err) {
+    console.error("Monri form creation error:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
-
 
 /**
  * STEP 2: Handle Monri callback (server-to-server notification)

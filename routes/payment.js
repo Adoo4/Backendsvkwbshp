@@ -30,30 +30,31 @@ router.post("/create-payment", async (req, res) => {
 
     const order_number = `ORD-${Date.now()}`;
     const order_info = `Order ${order_number}`;
+    const amountMinor = Math.round(amount);
 
     // ✅ Calculate Monri digest according to docs:
     // digest = SHA512(MONRI_KEY + order_number + amount + currency)
-    const digest = crypto
-      .createHash("sha512")
-      .update(MONRI_KEY + order_number + amount.toString() + currency)
-      .digest("hex");
-
+   const digest = crypto
+  .createHash("sha512")
+  .update(MONRI_KEY + order_number + amountMinor.toString() + currency)
+  .digest("hex");
+// 
     // ✅ Build POST fields
     const formData = {
-      authenticity_token: MONRI_AUTH_TOKEN,
-      order_number,
-      amount,
-      currency,
-      order_info,
-      ch_full_name: customer.full_name,
-      ch_email: customer.email,
-      language: "en",
-      transaction_type: "purchase",
-      digest,
-      success_url_override: MONRI_RETURN_URL,
-      callback_url: MONRI_CALLBACK_URL,
-      cancel_url: MONRI_CANCEL_URL,
-    };
+  authenticity_token: MONRI_AUTH_TOKEN,
+  order_number,
+  amount: amountMinor,
+  currency,
+  order_info,
+  ch_full_name: customer.full_name,
+  ch_email: customer.email,
+  language: "en",
+  transaction_type: "purchase",
+  digest,
+  success_url_override: MONRI_RETURN_URL,
+  callback_url: MONRI_CALLBACK_URL,
+  cancel_url: MONRI_CANCEL_URL,
+};
 
     // ✅ Return everything to frontend
     res.status(200).json({

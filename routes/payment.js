@@ -48,9 +48,9 @@ router.post("/create-payment", async (req, res) => {
     const timestamp = Math.floor(Date.now() / 1000);
     const bodyAsString = JSON.stringify(payload);
     const digest = crypto
-      .createHash("sha512")
-      .update(MONRI_KEY + timestamp + MONRI_AUTH_TOKEN + bodyAsString)
-      .digest("hex");
+  .createHash("sha512")
+  .update(MONRI_KEY + timestamp + MONRI_AUTH_TOKEN + bodyAsString)
+  .digest("hex");
 
     const authorizationHeader = `WP3-v2 ${MONRI_AUTH_TOKEN} ${timestamp} ${digest}`;
 

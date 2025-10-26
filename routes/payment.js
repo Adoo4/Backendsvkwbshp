@@ -29,9 +29,8 @@ router.post("/create-payment", async (req, res) => {
 
     const order_number = `ORD-${Date.now()}`;
     const order_info = `Order ${order_number}`;
-    const amountMinor = Math.round(amount * 100); // Convert to minor units
+    const amountMinor = Math.round(amount * 100); // minor units
 
-    // Build request payload
     const payload = {
       amount: amountMinor,
       order_number,
@@ -46,7 +45,6 @@ router.post("/create-payment", async (req, res) => {
       success_url_override: MONRI_RETURN_URL,
     };
 
-    // Construct digest and Authorization header
     const timestamp = Math.floor(Date.now() / 1000);
     const bodyAsString = JSON.stringify(payload);
     const digest = crypto
@@ -56,23 +54,33 @@ router.post("/create-payment", async (req, res) => {
 
     const authorizationHeader = `WP3-v2 ${MONRI_AUTH_TOKEN} ${timestamp} ${digest}`;
 
-    // Send request to Monri API
     const response = await axios.post(`${MONRI_BASE_URL}/v2/payment/new`, payload, {
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: authorizationHeader,
-  },
-});
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorizationHeader,
+      },
+    });
 
-    // Return Monri API response to frontend
-    res.status(200).json({
-  payment_url: response.data?.payment_url, // this is what frontend should use
-});
+    console.log("Monri API response:", response.data); // log to see structure
+
+    // Use the correct field from Monri response
+    const paymentUrl =
+      response.data?.payment?.checkout_url || response.data?.checkout_url;
+
+    if (!paymentUrl) {
+      return res.status(500).json({
+        message: "Monri API did not return a checkout URL",
+        data: response.data,
+      });
+    }
+
+    res.status(200).json({ payment_url: paymentUrl });
   } catch (error) {
     console.error("Monri create-payment error:", error.response?.data || error.message);
     res.status(500).json({ message: "Server error while creating payment" });
   }
 });
+
 
 /**
  * STEP 2: Handle Monri callback (server-to-server notification)

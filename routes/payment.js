@@ -58,14 +58,16 @@ router.post("/create-payment", async (req, res) => {
 
     // Send request to Monri API
     const response = await axios.post(`${MONRI_BASE_URL}/v2/payment/new`, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authorizationHeader,
-      },
-    });
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: authorizationHeader,
+  },
+});
 
     // Return Monri API response to frontend
-    res.status(200).json(response.data);
+    res.status(200).json({
+  payment_url: response.data?.payment_url, // this is what frontend should use
+});
   } catch (error) {
     console.error("Monri create-payment error:", error.response?.data || error.message);
     res.status(500).json({ message: "Server error while creating payment" });

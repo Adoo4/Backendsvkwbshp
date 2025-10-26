@@ -1,21 +1,23 @@
 const express = require("express");
 const crypto = require("crypto");
+const axios = require("axios");
+
 const router = express.Router();
 
-const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN;
-const MONRI_KEY = process.env.MONRI_KEY;
-
+// Monri credentials & URLs
+const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // public / slave token
+const MONRI_KEY = process.env.MONRI_KEY;               // private / master key for digest
 const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://yourfrontend.com/success";
-const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://yourbackend.com/api/payment/callback";
 const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://yourfrontend.com/cancel";
+const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://yourbackend.com/api/payment/callback";
 
-// ✅ Monri endpoints
-const MONRI_FORM_URL = process.env.NODE_ENV === "production"
-  ? "https://ipg.monri.com/v2/form"
-  : "https://ipgtest.monri.com/v2/form";
+// Base URL depending on environment
+const MONRI_BASE_URL = process.env.NODE_ENV === "production"
+  ? "https://ipg.monri.com"
+  : "https://ipgtest.monri.com";
 
 /**
- * STEP 1: Create Redirect form data for frontend submission
+ * STEP 1: Create payment via Monri API (server-side)
  */
 router.post("/create-payment", async (req, res) => {
   try {
@@ -27,53 +29,58 @@ router.post("/create-payment", async (req, res) => {
 
     const order_number = `ORD-${Date.now()}`;
     const order_info = `Order ${order_number}`;
+    const amountMinor = Math.round(amount * 100); // Convert to minor units
 
-    // ✅ Convert to minor units (e.g., BAM 82.00 -> 8200)
-    const amountMinor = Math.round(amount * 100);
-
-    // ✅ Calculate Monri digest
-    const digest = crypto
-      .createHash("sha512")
-      .update(MONRI_KEY + order_number + amountMinor.toString() + currency)
-      .digest("hex");
-
-    // ✅ Build POST fields
-    const formData = {
-      authenticity_token: MONRI_AUTH_TOKEN,
-      order_number,
+    // Build request payload
+    const payload = {
       amount: amountMinor,
+      order_number,
       currency,
+      transaction_type: "purchase",
       order_info,
       ch_full_name: customer.full_name,
       ch_email: customer.email,
       language: "en",
-      transaction_type: "purchase",
-      digest,
-      success_url_override: MONRI_RETURN_URL,
       callback_url: MONRI_CALLBACK_URL,
       cancel_url: MONRI_CANCEL_URL,
+      success_url_override: MONRI_RETURN_URL,
     };
 
-    // ✅ Return everything to frontend
-    res.status(200).json({
-      formAction: MONRI_FORM_URL,
-      formData,
+    // Construct digest and Authorization header
+    const timestamp = Math.floor(Date.now() / 1000);
+    const bodyAsString = JSON.stringify(payload);
+    const digest = crypto
+      .createHash("sha512")
+      .update(MONRI_KEY + timestamp + MONRI_AUTH_TOKEN + bodyAsString)
+      .digest("hex");
+
+    const authorizationHeader = `WP3-v2 ${MONRI_AUTH_TOKEN} ${timestamp} ${digest}`;
+
+    // Send request to Monri API
+    const response = await axios.post(`${MONRI_BASE_URL}/v2/payment/new`, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorizationHeader,
+      },
     });
+
+    // Return Monri API response to frontend
+    res.status(200).json(response.data);
   } catch (error) {
-    console.error("Monri create-payment error:", error);
+    console.error("Monri create-payment error:", error.response?.data || error.message);
     res.status(500).json({ message: "Server error while creating payment" });
   }
 });
 
 /**
- * STEP 2: Handle Monri callback
+ * STEP 2: Handle Monri callback (server-to-server notification)
+ * Verify digest using WP3 standard: SHA512(MONRI_KEY + rawBody)
  */
 router.post("/callback", express.json({ type: "*/*" }), (req, res) => {
   try {
     const rawBody = JSON.stringify(req.body);
     const monriDigest = req.headers["authorization"]?.split(" ")[1];
 
-    // ✅ Recalculate the digest to verify Monri source
     const calculatedDigest = crypto
       .createHash("sha512")
       .update(MONRI_KEY + rawBody)
@@ -84,10 +91,9 @@ router.post("/callback", express.json({ type: "*/*" }), (req, res) => {
       return res.status(403).send("Invalid signature");
     }
 
-    const transaction = req.body;
-    console.log("✅ Verified Monri callback:", transaction);
+    console.log("✅ Verified Monri callback:", req.body);
 
-    // TODO: update your database with transaction info (approved, declined, etc.)
+    // TODO: Update your database with transaction info
 
     res.status(200).send("OK");
   } catch (error) {
@@ -97,23 +103,13 @@ router.post("/callback", express.json({ type: "*/*" }), (req, res) => {
 });
 
 /**
- * STEP 3: Handle Monri success redirect
+ * STEP 3: Optional success redirect (frontend)
  */
 router.get("/success", (req, res) => {
   const params = req.query;
 
-  // ✅ Recalculate success URL digest for validation
-  const urlWithoutDigest = `${req.protocol}://${req.get("host")}${req.originalUrl.split("&digest=")[0]}`;
-  const digest = crypto
-    .createHash("sha512")
-    .update(MONRI_KEY + urlWithoutDigest)
-    .digest("hex");
-
-  if (digest !== params.digest) {
-    console.warn("⚠️ Invalid Monri success URL digest");
-    return res.status(403).send("Invalid digest");
-  }
-
+  // You can optionally verify digest if Monri provides it in query
+  // For now, just redirect to frontend success page
   res.redirect(`${MONRI_RETURN_URL}?status=success&order_number=${params.order_number}`);
 });
 

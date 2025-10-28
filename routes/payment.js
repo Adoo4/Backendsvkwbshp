@@ -20,7 +20,7 @@ const MONRI_FORM_URL =
  * STEP 2: Handle Monri callback (server-to-server notification)
  * Verify digest using WP3 standard: SHA512(MONRI_KEY + rawBody)
  */
-router.post("/create-payment", (req, res) => {
+{/*router.post("/create-payment", (req, res) => {
   try {
     const { amount, currency, order_number } = req.body;
 
@@ -35,7 +35,7 @@ router.post("/create-payment", (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to create payment digest" });
   }
-});
+});*/}
 
 {/*router.post("/create", requireAuth, async (req, res) => {
   try {

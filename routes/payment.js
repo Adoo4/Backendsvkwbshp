@@ -1,7 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-const requireAuth = require("../middleware/requireAuth");
 
 const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // authenticity token
 const MONRI_KEY = process.env.MONRI_KEY;               // merchant key
@@ -21,7 +20,7 @@ const MONRI_FORM_URL =
  * STEP 2: Handle Monri callback (server-to-server notification)
  * Verify digest using WP3 standard: SHA512(MONRI_KEY + rawBody)
  */
-{/*router.post("/create-payment", (req, res) => {
+router.post("/create-payment", (req, res) => {
   try {
     const { amount, currency, order_number } = req.body;
 
@@ -36,9 +35,9 @@ const MONRI_FORM_URL =
     console.error(err);
     res.status(500).json({ error: "Failed to create payment digest" });
   }
-});*/}
+});
 
-router.post("/create", requireAuth, async (req, res) => {
+{/*router.post("/create", requireAuth, async (req, res) => {
   try {
     // 1️⃣ Fetch user's cart with book details
     const cart = await Cart.findOne({ userId: req.userId }).populate("items.book");
@@ -88,7 +87,7 @@ router.post("/create", requireAuth, async (req, res) => {
     console.error("Monri create error:", err.response?.data || err.message);
     res.status(500).json({ message: "Payment creation failed", error: err.message });
   }
-});
+}); */}
 
 /**
  * STEP 3: Optional success redirect (frontend)

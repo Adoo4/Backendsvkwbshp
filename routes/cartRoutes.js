@@ -57,11 +57,11 @@ return {
     const totalWithDelivery = totalCart + delivery;
 
     res.json({
-      items,
-      totalCart: totalCart.toFixed(2),
-      delivery,
-      totalWithDelivery: totalWithDelivery.toFixed(2),
-    });
+  items,
+  totalCart,
+  delivery,
+  totalWithDelivery,
+});
   } catch (err) {
     console.error("Error fetching cart:", err);
     res.status(500).json({ message: "Error fetching cart" });

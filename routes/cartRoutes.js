@@ -31,24 +31,24 @@ router.get("/", requireAuth, async (req, res) => {
           if (validUntil >= now) discount = book.discount.amount;
         }
 
-        const discountedPrice = book.price * (1 - discount / 100);
-        const itemTotal = discountedPrice * item.quantity;
-        totalCart += itemTotal;
+       const discountedPrice = book.price * (1 - discount / 100);
+const itemTotal = discountedPrice * item.quantity;
 
-        return {
-          _id: item._id,
-          quantity: item.quantity,
-          itemTotal: itemTotal.toFixed(2),
-          book: {
-            _id: book._id,
-            title: book.title,
-            author: book.author,
-            price: book.price,
-            discountedPrice: discountedPrice.toFixed(2),
-            discount,
-            coverImage: book.coverImage,
-          },
-        };
+return {
+  _id: item._id,
+  quantity: item.quantity,
+  itemTotal, // number, not string
+  book: {
+    _id: book._id,
+    title: book.title,
+    author: book.author,
+    price: book.price,
+    discountedPrice, // number
+    discount,
+    coverImage: book.coverImage,
+  },
+};
+
       })
       .filter(Boolean);
 

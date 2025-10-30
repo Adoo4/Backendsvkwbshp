@@ -11,7 +11,13 @@ const router = express.Router();
 // GET user's cart with secure backend price calculation
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.userId }).populate("items.book");
+    const cart = await Cart.findOne({ userId: req.userId })
+  .populate({
+    path: "items.book",
+    model: "Book",
+    select: "title author price coverImage discount format isbn pages",
+    match: { _id: { $ne: null } }, // filter invalid books
+  });
     if (!cart) {
       return res.json({ items: [], totalCart: 0, totalWithDelivery: 0 });
     }

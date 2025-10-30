@@ -12,12 +12,13 @@ const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId })
-  .populate({
-    path: "items.book",
-    model: "Book",
-    select: "title author price coverImage discount format isbn pages",
-    match: { _id: { $ne: null } }, // filter invalid books
-  });
+      .populate({
+        path: "items.book",
+        model: "Book",
+        select: "title author price coverImage discount format isbn pages",
+        match: { _id: { $ne: null } }, // filter invalid books
+      });
+
     if (!cart) {
       return res.json({ items: [], totalCart: 0, totalWithDelivery: 0 });
     }
@@ -25,42 +26,47 @@ router.get("/", requireAuth, async (req, res) => {
     let totalCart = 0;
     const now = new Date();
 
-    const items = cart.items.map((item) => {
-      const book = item.book;
-      if (!book) return null;
+    const items = cart.items
+      .map((item) => {
+        const book = item.book;
+        if (!book) return null;
 
-      let discountAmount = 0;
-      let discountedPrice = book.price;
+        let discountAmount = 0;
+        let discountedPrice = book.price;
 
-      if (book.discount && book.discount.amount && book.discount.validUntil) {
-        const validUntil = new Date(book.discount.validUntil);
-        if (validUntil >= now) {
-          discountAmount = book.discount.amount;
-          discountedPrice = book.price * (1 - discountAmount / 100);
+        if (book.discount && book.discount.amount && book.discount.validUntil) {
+          const validUntil = new Date(book.discount.validUntil);
+          if (validUntil >= now) {
+            discountAmount = book.discount.amount;
+            discountedPrice = book.price * (1 - discountAmount / 100);
+          }
         }
-      }
 
-      const itemTotal = discountedPrice * item.quantity;
-      totalCart += itemTotal;
+        const itemTotal = discountedPrice * item.quantity;
+        totalCart += itemTotal;
 
-      return {
-        _id: item._id,
-        quantity: item.quantity,
-        itemTotal,
-        book: {
-          _id: book._id,
-          title: book.title,
-          author: book.author,
-          price: book.price,
-          discountedPrice,
-          discount: {
-            amount: discountAmount,
-            validUntil: book.discount?.validUntil,
+        return {
+          _id: item._id,
+          quantity: item.quantity,
+          itemTotal,
+          book: {
+            _id: book._id,
+            title: book.title,
+            author: book.author,
+            price: book.price,
+            discountedPrice,
+            discount: {
+              amount: discountAmount,
+              validUntil: book.discount?.validUntil,
+            },
+            coverImage: book.coverImage,
+            format: book.format,       // ✅ added
+            isbn: book.isbn,           // ✅ added
+            pages: book.pages,         // ✅ added
           },
-          coverImage: book.coverImage,
-        },
-      };
-    }).filter(Boolean);
+        };
+      })
+      .filter(Boolean);
 
     const delivery = totalCart >= 100 ? 0 : 5;
     const totalWithDelivery = totalCart + delivery;
@@ -76,6 +82,7 @@ router.get("/", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Error fetching cart" });
   }
 });
+
 
 
 

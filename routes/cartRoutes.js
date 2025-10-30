@@ -17,51 +17,54 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     let totalCart = 0;
+    const now = new Date();
 
-    const items = cart.items
-      .map((item) => {
-        const book = item.book;
-        if (!book) return null;
+    const items = cart.items.map((item) => {
+      const book = item.book;
+      if (!book) return null;
 
-        // ✅ Calculate discount if still valid
-        let discount = 0;
-        if (book.discount && book.discount.amount && book.discount.validUntil) {
-          const now = new Date();
-          const validUntil = new Date(book.discount.validUntil);
-          if (validUntil >= now) discount = book.discount.amount;
+      let discountAmount = 0;
+      let discountedPrice = book.price;
+
+      if (book.discount && book.discount.amount && book.discount.validUntil) {
+        const validUntil = new Date(book.discount.validUntil);
+        if (validUntil >= now) {
+          discountAmount = book.discount.amount;
+          discountedPrice = book.price * (1 - discountAmount / 100);
         }
+      }
 
-       const discountedPrice = book.price * (1 - discount / 100);
-const itemTotal = discountedPrice * item.quantity;
+      const itemTotal = discountedPrice * item.quantity;
+      totalCart += itemTotal;
 
-return {
-  _id: item._id,
-  quantity: item.quantity,
-  itemTotal, // number, not string
-  book: {
-    _id: book._id,
-    title: book.title,
-    author: book.author,
-    price: book.price,
-    discountedPrice, // number
-    discount,
-    coverImage: book.coverImage,
-  },
-};
+      return {
+        _id: item._id,
+        quantity: item.quantity,
+        itemTotal,
+        book: {
+          _id: book._id,
+          title: book.title,
+          author: book.author,
+          price: book.price,
+          discountedPrice,
+          discount: {
+            amount: discountAmount,
+            validUntil: book.discount?.validUntil,
+          },
+          coverImage: book.coverImage,
+        },
+      };
+    }).filter(Boolean);
 
-      })
-      .filter(Boolean);
-
-    // Example delivery rule (adjust freely)
     const delivery = totalCart >= 100 ? 0 : 5;
     const totalWithDelivery = totalCart + delivery;
 
     res.json({
-  items,
-  totalCart,
-  delivery,
-  totalWithDelivery,
-});
+      items,
+      totalCart,
+      delivery,
+      totalWithDelivery,
+    });
   } catch (err) {
     console.error("Error fetching cart:", err);
     res.status(500).json({ message: "Error fetching cart" });

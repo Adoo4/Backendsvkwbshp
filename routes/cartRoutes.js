@@ -2,6 +2,7 @@ const express = require("express");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
 const requireAuth = require("../middleware/requireAuth");
+const { calculateCartTotals } = require("../utils/calculate");
 
 const router = express.Router();
 
@@ -11,68 +12,22 @@ const router = express.Router();
 // GET user's cart with secure backend price calculation
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.userId })
-      .populate({
-        path: "items.book",
-        model: "Book",
-        select: "title author price coverImage discount format isbn pages",
-        match: { _id: { $ne: null } }, // filter invalid books
-      });
+    const cart = await Cart.findOne({ userId: req.userId }).populate({
+      path: "items.book",
+      model: "Book",
+      select: "title author price coverImage discount format isbn pages",
+      match: { _id: { $ne: null } },
+    });
 
     if (!cart) {
       return res.json({ items: [], totalCart: 0, totalWithDelivery: 0 });
     }
 
-    let totalCart = 0;
-    const now = new Date();
-
-    const items = cart.items
-      .map((item) => {
-        const book = item.book;
-        if (!book) return null;
-
-        let discountAmount = 0;
-        let discountedPrice = book.price;
-
-        if (book.discount && book.discount.amount && book.discount.validUntil) {
-          const validUntil = new Date(book.discount.validUntil);
-          if (validUntil >= now) {
-            discountAmount = book.discount.amount;
-            discountedPrice = book.price * (1 - discountAmount / 100);
-          }
-        }
-
-        const itemTotal = discountedPrice * item.quantity;
-        totalCart += itemTotal;
-
-        return {
-          _id: item._id,
-          quantity: item.quantity,
-          itemTotal,
-          book: {
-            _id: book._id,
-            title: book.title,
-            author: book.author,
-            price: book.price,
-            discountedPrice,
-            discount: {
-              amount: discountAmount,
-              validUntil: book.discount?.validUntil,
-            },
-            coverImage: book.coverImage,
-            format: book.format,       // ✅ added
-            isbn: book.isbn,           // ✅ added
-            pages: book.pages,         // ✅ added
-          },
-        };
-      })
-      .filter(Boolean);
-
-    const delivery = totalCart >= 100 ? 0 : 5;
-    const totalWithDelivery = totalCart + delivery;
+    const { detailedItems, totalCart, delivery, totalWithDelivery } =
+      calculateCartTotals(cart.items);
 
     res.json({
-      items,
+      items: detailedItems,
       totalCart,
       delivery,
       totalWithDelivery,
@@ -83,16 +38,8 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-{/*router.get("/", requireAuth, async (req, res) => {
+{
+  /*router.get("/", requireAuth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId }).populate("items.book");
     if (!cart) return res.json({ items: [] });
@@ -101,7 +48,8 @@ router.get("/", requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Error fetching cart" });
   }
-});*/}
+});*/
+}
 
 // ADD to cart
 router.post("/", requireAuth, async (req, res) => {
@@ -118,14 +66,23 @@ router.post("/", requireAuth, async (req, res) => {
         items: [{ book: bookId, quantity }],
       });
     } else {
-      const idx = cart.items.findIndex(i => i.book.toString() === bookId);
+      const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
       if (idx > -1) cart.items[idx].quantity += quantity;
       else cart.items.push({ book: bookId, quantity });
     }
 
     await cart.save();
     await cart.populate("items.book");
-    res.status(201).json(cart);
+
+    const { detailedItems, totalCart, delivery, totalWithDelivery } =
+      calculateCartTotals(cart.items);
+
+    res.status(201).json({
+      items: detailedItems,
+      totalCart,
+      delivery,
+      totalWithDelivery,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error adding to cart" });
@@ -139,13 +96,23 @@ router.patch("/", requireAuth, async (req, res) => {
     const cart = await Cart.findOne({ userId: req.userId });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    const idx = cart.items.findIndex(i => i.book.toString() === bookId);
-    if (idx === -1) return res.status(404).json({ message: "Item not in cart" });
+    const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
+    if (idx === -1)
+      return res.status(404).json({ message: "Item not in cart" });
 
     cart.items[idx].quantity = quantity;
     await cart.save();
     await cart.populate("items.book");
-    res.json(cart);
+
+    const { detailedItems, totalCart, delivery, totalWithDelivery } =
+      calculateCartTotals(cart.items);
+
+    res.json({
+      items: detailedItems,
+      totalCart,
+      delivery,
+      totalWithDelivery,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error updating cart" });
@@ -158,10 +125,21 @@ router.delete("/:bookId", requireAuth, async (req, res) => {
     const cart = await Cart.findOne({ userId: req.userId });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    cart.items = cart.items.filter(i => i.book.toString() !== req.params.bookId);
+    cart.items = cart.items.filter(
+      (i) => i.book.toString() !== req.params.bookId
+    );
     await cart.save();
     await cart.populate("items.book");
-    res.json(cart);
+
+    const { detailedItems, totalCart, delivery, totalWithDelivery } =
+      calculateCartTotals(cart.items);
+
+    res.json({
+      items: detailedItems,
+      totalCart,
+      delivery,
+      totalWithDelivery,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error removing item" });
@@ -176,6 +154,36 @@ router.delete("/", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error clearing cart" });
+  }
+});
+
+// CART CALCULATE
+
+router.post("/calculate", async (req, res) => {
+  try {
+    const { items, deliveryMethod } = req.body;
+
+    // Fetch book details for each item
+    const populatedItems = await Promise.all(
+      items.map(async (item) => {
+        const book = await Book.findById(item.book);
+        return { book, quantity: item.quantity };
+      })
+    );
+
+    const { totalCart, delivery, totalWithDelivery } = calculateCartTotals(
+      populatedItems,
+      deliveryMethod
+    );
+
+    res.json({
+      totalBooksPrice: totalCart.toFixed(2),
+      deliveryPrice: delivery.toFixed(2),
+      totalWithDelivery: totalWithDelivery.toFixed(2),
+    });
+  } catch (error) {
+    console.error("Error calculating totals:", error);
+    res.status(500).json({ message: "Calculation failed" });
   }
 });
 

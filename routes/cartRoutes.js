@@ -181,57 +181,7 @@ router.delete("/", requireAuth, async (req, res) => {
   }
 });
 
-//CALCULATE
-router.post("/calculate", async (req, res) => {
-  try {
-    const { items, deliveryMethod } = req.body;
-    // ✅ Place your log right here:
-    console.log("Incoming items:", items);
-    console.log("Delivery method:", deliveryMethod);
-    const detailed = [];
 
-    let totalCart = 0;
-
-    for (const { book, quantity } of items) {
-      const bookData = await Book.findById(book);
-      if (!bookData) continue;
-
-      let discountAmount = 0;
-      let discountedPrice = bookData.price;
-
-      if (bookData.discount && bookData.discount.amount && bookData.discount.validUntil) {
-        const validUntil = new Date(bookData.discount.validUntil);
-        if (validUntil >= new Date()) {
-          discountAmount = bookData.discount.amount;
-          discountedPrice = bookData.price * (1 - discountAmount / 100);
-        }
-      }
-
-      const itemTotal = discountedPrice * quantity;
-      totalCart += itemTotal;
-
-      detailed.push({
-        book: bookData._id,
-        quantity,
-        discountedPrice,
-        itemTotal,
-      });
-    }
-
-    const delivery = deliveryMethod === "bhposta" ? (totalCart >= 100 ? 0 : 5) : 0;
-    const totalWithDelivery = totalCart + delivery;
-
-    res.json({
-      items: detailed,
-      totalCart,
-      delivery,
-      totalWithDelivery,
-    });
-  } catch (err) {
-    console.error("Error calculating totals:", err);
-    res.status(500).json({ message: "Error calculating totals" });
-  }
-});
 
 
 

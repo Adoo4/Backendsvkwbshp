@@ -188,7 +188,7 @@ router.post("/calculate", async (req, res) => {
     const detailed = [];
 
     let totalCart = 0;
-
+console.log("Incoming items:", items);
     for (const { book, quantity } of items) {
       const bookData = await Book.findById(book);
       if (!bookData) continue;

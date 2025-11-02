@@ -185,10 +185,13 @@ router.delete("/", requireAuth, async (req, res) => {
 router.post("/calculate", async (req, res) => {
   try {
     const { items, deliveryMethod } = req.body;
+    // ✅ Place your log right here:
+    console.log("Incoming items:", items);
+    console.log("Delivery method:", deliveryMethod);
     const detailed = [];
 
     let totalCart = 0;
-console.log("Incoming items:", items);
+
     for (const { book, quantity } of items) {
       const bookData = await Book.findById(book);
       if (!bookData) continue;

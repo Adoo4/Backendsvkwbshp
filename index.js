@@ -13,6 +13,7 @@ const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 const paymentRoutes = require("./routes/payment");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -55,6 +56,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/cart", requireAuth, cartRoutes);
 app.use("/api/wishlist", requireAuth, wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/order", orderRoutes);
 // ---------------- DB Connection ----------------
 const connectDB = async () => {
   try {

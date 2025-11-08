@@ -92,6 +92,43 @@ router.post("/create-payment", (req, res) => {
 /**
  * STEP 3: Optional success redirect (frontend)
  */
+
+router.post("/callback", express.raw({ type: "*/*" }), (req, res) => {
+  try {
+    // 1️⃣ Get the raw body (needed for Monri digest validation)
+    const rawBody = req.body.toString();
+    const digestHeader = req.headers["digest"];
+
+    // 2️⃣ Validate digest (security check)
+    const expectedDigest = crypto.createHash("sha512")
+      .update(MONRI_KEY + rawBody)
+      .digest("hex");
+
+    if (expectedDigest !== digestHeader) {
+      console.warn("❌ Invalid Monri callback digest!");
+      return res.status(403).send("Invalid digest");
+    }
+
+    // 3️⃣ Parse Monri payload (it usually includes order_number, response_code, amount, etc.)
+    const data = JSON.parse(rawBody);
+
+    console.log("✅ Payment callback received:", data);
+
+    // 4️⃣ Check if transaction is successful
+    if (data.response_code === "0000") {
+      console.log(`💰 Payment for order ${data.order_number} successful!`);
+      // Update your database, mark order as paid, clear pending cart, etc.
+    } else {
+      console.log(`❗Payment for order ${data.order_number} failed: ${data.response_message}`);
+    }
+
+    // 5️⃣ Respond to Monri (they require 200 OK)
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("⚠️ Monri callback error:", err);
+    res.status(500).send("Error");
+  }
+});
 router.get("/success", (req, res) => {
   const params = req.query;
 

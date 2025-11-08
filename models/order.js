@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const orderSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    clerkId: { type: String, required: true }, // optional, easier lookup in Clerk
+    clerkId: { type: String, required: true },
+
     items: [
       {
         book: { type: mongoose.Schema.Types.ObjectId, ref: "Book", required: true },
@@ -11,10 +12,34 @@ const orderSchema = new mongoose.Schema(
         priceAtPurchase: { type: Number, required: true },
       },
     ],
+
     totalAmount: { type: Number, required: true },
-    paid: { type: Boolean, default: false },
-    paymentId: { type: String }, // Monri payment reference
-    createdAt: { type: Date, default: Date.now },
+    status: {
+      type: String,
+      enum: ["pending", "paid", "failed", "cancelled"],
+      default: "pending",
+    },
+
+    // 🧭 Shipping & delivery
+    shipping: {
+      fullName: String,
+      email: String,
+      phone: String,
+      address: String,
+      city: String,
+      zip: String,
+      deliveryMethod: String, // e.g. bhposta, euroexpress, storepickup
+    },
+
+    // 💳 Payment
+    paymentMethod: {
+      type: String,
+      enum: ["card", "cash", "bank"],
+    },
+    paymentId: String, // Monri order_number or reference
+
+    // Optional Monri data
+    monriResponse: Object,
   },
   { timestamps: true }
 );

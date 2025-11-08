@@ -5,7 +5,7 @@ const router = express.Router();
 const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // authenticity token
 const MONRI_KEY = process.env.MONRI_KEY;               // merchant key
 
-const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://yourfrontend.com/success";
+const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "http://localhost:3000/payment-success";
 const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://yourfrontend.com/cancel";
 const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://yourbackend.com/api/payment/callback";
 

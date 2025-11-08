@@ -85,26 +85,6 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-{/*router.get("/", requireAuth, async (req, res) => {
-  try {
-    const cart = await Cart.findOne({ userId: req.userId }).populate("items.book");
-    if (!cart) return res.json({ items: [] });
-    res.json(cart);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching cart" });
-  }
-});*/}
-
 // ADD to cart
 router.post("/", requireAuth, async (req, res) => {
   try {

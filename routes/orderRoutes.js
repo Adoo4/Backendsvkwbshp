@@ -76,3 +76,6 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Failed to create temporary order", error: err.message });
   }
 });
+
+
+module.exports = router; // ✅ export the router

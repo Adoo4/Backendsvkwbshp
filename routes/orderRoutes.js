@@ -1,3 +1,10 @@
+const express = require("express");
+const TempOrder = require("../models/tempOrder"); // make sure this model exists
+const User = require("../models/user");
+const requireAuth = require("../middleware/requireAuth");
+
+const router = express.Router();
+
 router.post("/create-temp", requireAuth, async (req, res) => {
   try {
     const { shipping, paymentOption, orderNumber } = req.body;

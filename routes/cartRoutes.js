@@ -5,7 +5,7 @@ const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
-const { calculateCartTotals } = require("../utils/calculate");
+
 
 // GET user's cart
 

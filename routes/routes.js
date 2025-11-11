@@ -36,7 +36,15 @@ router.get("/", async (req, res, next) => {
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
-    if (discount === "true" || discount === true) query["discount.amount"] = { $gt: 0 };
+     // ✅ Filter only valid discounts
+    if (discount === "true" || discount === true) {
+      query.$expr = {
+        $and: [
+          { $gt: ["$discount.amount", 0] },
+          { $gt: ["$discount.validUntil", new Date()] },
+        ],
+      };
+    }
 
     console.log("MongoDB query:", query);
 

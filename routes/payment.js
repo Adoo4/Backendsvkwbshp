@@ -102,7 +102,11 @@ try {
     // Get raw body as string
    const rawBody = req.body.toString("utf-8"); // <-- correct
 
-    const digestHeader = req.headers["digest"];
+    // Get digest from authorization header
+    const authHeader = req.headers["authorization"] || req.headers["http_authorization"];
+    const digestHeader = authHeader?.replace("WP3-callback ", "").trim();
+
+  
 
     const expectedDigest = crypto
       .createHash("sha512")

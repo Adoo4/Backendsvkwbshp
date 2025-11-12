@@ -8,7 +8,7 @@ const MONRI_KEY = process.env.MONRI_KEY;               // merchant key
 
 const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://svkbkstr.netlify.app/payment-success";
 const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://svkbkstr.netlify.app/payment-cancel";
-const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://yourbackend.com/api/payment/callback";
+const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://backendsvkwbshp.onrender.com/api/payment/callback";
 
 const MONRI_FORM_URL =
   process.env.NODE_ENV === "production"

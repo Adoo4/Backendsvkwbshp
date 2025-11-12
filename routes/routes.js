@@ -42,7 +42,7 @@ router.get("/", async (req, res, next) => {
       const today = new Date();
       query["discount.validUntil"] = { $gte: today };
       query["discount.amount"] = { $gt: 0 };
-    }
+    } //novo
 
     console.log("MongoDB query:", query);
 

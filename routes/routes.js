@@ -37,11 +37,12 @@ router.get("/", async (req, res, next) => {
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
      // ✅ Filter only valid discounts
+       // ✅ Filter only books with valid, non-expired discounts
     if (discount === "true" || discount === true) {
-  const todayStr = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
-  query["discount.validUntil"] = { $gte: todayStr };
-  query["discount.amount"] = { $gt: 0 };
-}
+      const today = new Date();
+      query["discount.validUntil"] = { $gte: today };
+      query["discount.amount"] = { $gt: 0 };
+    }
 
     console.log("MongoDB query:", query);
 

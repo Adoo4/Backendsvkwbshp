@@ -95,6 +95,9 @@ router.post("/create-payment", (req, res) => {
  */
 
 router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
+   console.log("🔔 Monri callback hit!");
+  console.log("Headers:", req.headers);
+  console.log("Raw body:", req.body.toString());
   try {
     // 1️⃣ Get raw body for digest validation
     const rawBody = req.body.toString();

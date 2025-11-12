@@ -93,14 +93,15 @@ router.post("/create-payment", (req, res) => {
  * STEP 3: Optional success redirect (frontend)
  */
 
-router.post("/callback", express.raw({ type: "*/*" }), (req, res) => {
+router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
   try {
-    // 1️⃣ Get the raw body (needed for Monri digest validation)
+    // 1️⃣ Get raw body for digest validation
     const rawBody = req.body.toString();
     const digestHeader = req.headers["digest"];
 
-    // 2️⃣ Validate digest (security check)
-    const expectedDigest = crypto.createHash("sha512")
+    // 2️⃣ Validate Monri's digest
+    const expectedDigest = crypto
+      .createHash("sha512")
       .update(MONRI_KEY + rawBody)
       .digest("hex");
 
@@ -109,26 +110,53 @@ router.post("/callback", express.raw({ type: "*/*" }), (req, res) => {
       return res.status(403).send("Invalid digest");
     }
 
-    // 3️⃣ Parse Monri payload (it usually includes order_number, response_code, amount, etc.)
+    // 3️⃣ Parse Monri's payload
     const data = JSON.parse(rawBody);
+    console.log("✅ Monri callback received:", data);
 
-    console.log("✅ Payment callback received:", data);
+    const { order_number, response_code, response_message, amount, transaction_id } = data;
 
-    // 4️⃣ Check if transaction is successful
-    if (data.response_code === "0000") {
-      console.log(`💰 Payment for order ${data.order_number} successful!`);
-      // Update your database, mark order as paid, clear pending cart, etc.
-    } else {
-      console.log(`❗Payment for order ${data.order_number} failed: ${data.response_message}`);
+    // 4️⃣ Find the matching TempOrder
+    const tempOrder = await TempOrder.findOne({ paymentId: order_number });
+
+    if (!tempOrder) {
+      console.warn(`⚠️ No TempOrder found for Monri order_number: ${order_number}`);
+      return res.status(404).send("Order not found");
     }
 
-    // 5️⃣ Respond to Monri (they require 200 OK)
+    // 5️⃣ Update order based on payment result
+    if (response_code === "0000") {
+      tempOrder.status = "paid";
+      tempOrder.paymentMethod = "card";
+      tempOrder.paymentInfo = {
+        transactionId: transaction_id,
+        amount,
+        currency: data.currency,
+        response_message,
+        paidAt: new Date(),
+      };
+
+      await tempOrder.save();
+      console.log(`💰 Order ${order_number} marked as paid`);
+    } else {
+      tempOrder.status = "failed";
+      tempOrder.paymentInfo = {
+        response_message,
+        failedAt: new Date(),
+      };
+      await tempOrder.save();
+      console.log(`❗Order ${order_number} failed: ${response_message}`);
+    }
+
+    // 6️⃣ Always respond 200 OK to Monri
     res.status(200).send("OK");
   } catch (err) {
     console.error("⚠️ Monri callback error:", err);
     res.status(500).send("Error");
   }
 });
+
+
 router.get("/success", (req, res) => {
   const params = req.query;
 

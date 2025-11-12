@@ -98,12 +98,12 @@ router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
    console.log("🔔 Monri callback hit!");
   console.log("Headers:", req.headers);
   console.log("Raw body:", req.body.toString());
-  try {
-    // 1️⃣ Get raw body for digest validation
-    const rawBody = req.body.toString();
+try {
+    // Get raw body as string
+    const rawBody = JSON.stringify(req.body); // <-- correct
+
     const digestHeader = req.headers["digest"];
 
-    // 2️⃣ Validate Monri's digest
     const expectedDigest = crypto
       .createHash("sha512")
       .update(MONRI_KEY + rawBody)
@@ -114,8 +114,7 @@ router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
       return res.status(403).send("Invalid digest");
     }
 
-    // 3️⃣ Parse Monri's payload
-    const data = JSON.parse(rawBody);
+    const data = req.body; // already parsed
     console.log("✅ Monri callback received:", data);
 
     const { order_number, response_code, response_message, amount, transaction_id } = data;

@@ -100,7 +100,7 @@ router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
   console.log("Raw body:", req.body.toString());
 try {
     // Get raw body as string
-    const rawBody = JSON.stringify(req.body); // <-- correct
+   const rawBody = req.body.toString("utf-8"); // <-- correct
 
     const digestHeader = req.headers["digest"];
 

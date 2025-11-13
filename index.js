@@ -6,6 +6,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 
+
 require("dotenv").config();
 
 const bookRoutes = require("./routes/routes");
@@ -14,6 +15,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 const paymentRoutes = require("./routes/payment");
 const orderRoutes = require("./routes/orderRoutes");
+const monriCallbackRoute = require("./routes/callback");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -33,14 +35,9 @@ origin: ["http://localhost:3000", "https://svkbkstr.netlify.app"], // allow your
 };
 app.use(cors(corsOptions));
 
-
-
-const raw = express.raw({ type: "application/json" });
-app.post("/api/payment/callback", raw, require("./routes/payment").callbackHandler);
+app.use("/api/payment/callback", monriCallbackRoute);
 
 app.use(express.json());
-
-
 
 // Security: sets secure HTTP headers
 app.use(helmet());

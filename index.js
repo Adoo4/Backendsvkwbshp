@@ -32,7 +32,15 @@ origin: ["http://localhost:3000", "https://svkbkstr.netlify.app"], // allow your
   credentials: true, // if you use cookies or auth headers
 };
 app.use(cors(corsOptions));
+
+
+
+const raw = express.raw({ type: "application/json" });
+app.post("/api/payment/callback", raw, require("./routes/payment").callbackHandler);
+
 app.use(express.json());
+
+
 
 // Security: sets secure HTTP headers
 app.use(helmet());

@@ -94,79 +94,85 @@ router.post("/create-payment", (req, res) => {
  * STEP 3: Optional success redirect (frontend)
  */
 
-router.post("/callback", express.raw({ type: "*/*" }), async (req, res) => {
-   console.log("🔔 Monri callback hit!");
-  console.log("Headers:", req.headers);
-  console.log("Raw body:", req.body.toString());
-try {
-    // Get raw body as string
-   const rawBody = req.body.toString("utf-8"); // <-- correct
+router.post(
+  "/callback",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    try {
+      console.log("🔔 Monri callback hit!");
+      console.log("Headers:", req.headers);
 
-    // Get digest from authorization header
-    const authHeader = req.headers["authorization"] || req.headers["http_authorization"];
-    const digestHeader = authHeader?.replace("WP3-callback ", "").trim();
+      // 1️⃣ Get raw body as utf-8 string
+      const rawBody = req.body.toString("utf-8");
 
-  
+      // 2️⃣ Extract digest from headers
+      const authHeader =
+        req.headers["authorization"] || req.headers["http_authorization"];
+      const receivedDigest = authHeader?.replace("WP3-callback ", "").trim();
 
-    const expectedDigest = crypto
-      .createHash("sha512")
-      .update(MONRI_KEY + rawBody)
-      .digest("hex");
+      // 3️⃣ Compute expected digest
+      const expectedDigest = crypto
+        .createHash("sha512")
+        .update(MONRI_KEY + rawBody)
+        .digest("hex");
 
-     if (expectedDigest !== digestHeader) {
-      console.warn("❌ Invalid Monri callback digest!");
-      console.log("Expected:", expectedDigest);
-      console.log("Received:", digestHeader);
-      console.log("Raw body used for digest:", rawBody);
-      return res.status(403).send("Invalid digest");
-    }
+      if (expectedDigest !== receivedDigest) {
+        console.warn("❌ Invalid Monri callback digest!");
+        console.log("Expected:", expectedDigest);
+        console.log("Received:", receivedDigest);
+        console.log("Raw body used for digest:", rawBody);
+        return res.status(403).send("Invalid digest");
+      }
 
-    const data = req.body; // already parsed
-    console.log("✅ Monri callback received:", data);
+      // 4️⃣ Parse JSON manually after verifying
+      const data = JSON.parse(rawBody);
+      console.log("✅ Monri callback verified:", data);
 
-    const { order_number, response_code, response_message, amount, transaction_id } = data;
-
-    // 4️⃣ Find the matching TempOrder
-    const tempOrder = await TempOrder.findOne({ paymentId: order_number });
-
-    if (!tempOrder) {
-      console.warn(`⚠️ No TempOrder found for Monri order_number: ${order_number}`);
-      return res.status(404).send("Order not found");
-    }
-
-    // 5️⃣ Update order based on payment result
-    if (response_code === "0000") {
-      tempOrder.status = "paid";
-      tempOrder.paymentMethod = "card";
-      tempOrder.paymentInfo = {
-        transactionId: transaction_id,
+      const {
+        order_number,
+        response_code,
+        response_message,
         amount,
-        currency: data.currency,
-        response_message,
-        paidAt: new Date(),
-      };
+        transaction_id,
+      } = data;
 
-      await tempOrder.save();
-      console.log(`💰 Order ${order_number} marked as paid`);
-    } else {
-      tempOrder.status = "failed";
-      tempOrder.paymentInfo = {
-        response_message,
-        failedAt: new Date(),
-      };
-      await tempOrder.save();
-      console.log(`❗Order ${order_number} failed: ${response_message}`);
+      // Example: handle order in DB
+      const tempOrder = await TempOrder.findOne({ paymentId: order_number });
+
+      if (!tempOrder) {
+        console.warn(`⚠️ No TempOrder found for order_number: ${order_number}`);
+        return res.status(404).send("Order not found");
+      }
+
+      if (response_code === "0000") {
+        tempOrder.status = "paid";
+        tempOrder.paymentMethod = "card";
+        tempOrder.paymentInfo = {
+          transactionId: transaction_id,
+          amount,
+          currency: data.currency,
+          response_message,
+          paidAt: new Date(),
+        };
+        await tempOrder.save();
+        console.log(`💰 Order ${order_number} marked as paid`);
+      } else {
+        tempOrder.status = "failed";
+        tempOrder.paymentInfo = {
+          response_message,
+          failedAt: new Date(),
+        };
+        await tempOrder.save();
+        console.log(`❗Order ${order_number} failed: ${response_message}`);
+      }
+
+      res.status(200).send("OK");
+    } catch (err) {
+      console.error("⚠️ Monri callback error:", err);
+      res.status(500).send("Error");
     }
-
-    // 6️⃣ Always respond 200 OK to Monri
-    res.status(200).send("OK");
-  } catch (err) {
-    console.error("⚠️ Monri callback error:", err);
-    res.status(500).send("Error");
-    //
   }
-});
-
+);
 
 router.get("/success", (req, res) => {
   const params = req.query;

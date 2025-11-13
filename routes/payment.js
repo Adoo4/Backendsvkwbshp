@@ -113,8 +113,11 @@ try {
       .update(MONRI_KEY + rawBody)
       .digest("hex");
 
-    if (expectedDigest !== digestHeader) {
+     if (expectedDigest !== digestHeader) {
       console.warn("❌ Invalid Monri callback digest!");
+      console.log("Expected:", expectedDigest);
+      console.log("Received:", digestHeader);
+      console.log("Raw body used for digest:", rawBody);
       return res.status(403).send("Invalid digest");
     }
 

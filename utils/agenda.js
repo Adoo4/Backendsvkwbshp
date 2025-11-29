@@ -10,6 +10,7 @@ const agenda = new Agenda({
 
 // Define the job
 agenda.define("send order emails", async (job) => {
+   console.log("🔔 Job started: send order emails");
   const { tempOrder } = job.attrs.data; // receive full order from callback
 
   if (!tempOrder) {
@@ -39,6 +40,8 @@ const adminMail = {
   text: `Kupac: ${tempOrder.shipping.fullName}\nEmail: ${tempOrder.shipping.email}\nTelefon: ${tempOrder.shipping.phone}\n\nDetalji narudžbe:\n${itemsList}\n\nUkupno: ${tempOrder.totalAmount} BAM\nStatus: Plaćeno\nNačin plaćanja: ${tempOrder.paymentMethod}\nNačin dostave: ${tempOrder.shipping.deliveryMethod}\nAdresa dostave: ${tempOrder.shipping.address}, ${tempOrder.shipping.city}, ${tempOrder.shipping.zip}`,
 };
 
+  console.log("📧 Preparing to send emails...");
+
 
   const nodemailer = require("nodemailer");
   const transporter = nodemailer.createTransport({
@@ -52,12 +55,16 @@ const adminMail = {
   });
 
   try {
+     console.log(`✉️ Sending customer email to: ${customerMail.to}`);
     await transporter.sendMail(customerMail);
     console.log(`✅ Customer email sent to ${customerMail.to}`);
 
+ console.log(`✉️ Sending admin email to: ${adminMail.to}`);
     await transporter.sendMail(adminMail);
     console.log(`✅ Admin email sent to ${adminMail.to}`);
+     console.log("🎉 Job completed successfully!");
   } catch (err) {
+    
     console.error("❌ Error sending emails:", err);
     throw err; // Agenda will retry if configured
   }
@@ -65,7 +72,9 @@ const adminMail = {
 
 // Start agenda
 (async function () {
+  console.log("🚀 Starting agenda...");
   await agenda.start();
+  console.log("✅ Agenda started, waiting for jobs...");
 })();
 
 module.exports = agenda;

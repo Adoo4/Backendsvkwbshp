@@ -37,7 +37,7 @@ agenda.define("send order emails", async (job) => {
 
   // Customer email data
   const customerMail = {
-    from: `"Svjetlostkomerc Webshop" <${process.env.MAIL_USER}>`,
+    from: process.env.MAIL_FROM,
     to: tempOrder.shipping.email,
     subject: `Vaša narudžba #${tempOrder.paymentId} je uspješno plaćena`,
     text: `Poštovani ${tempOrder.shipping.fullName},\n\nVaša narudžba je uspješno plaćena.\nBroj narudžbe: ${tempOrder.paymentId}\n\nDetalji narudžbe:\n${itemsList}\n\nUkupno: ${tempOrder.totalAmount} BAM\n\nNačin plaćanja: ${tempOrder.paymentMethod}\nNačin dostave: ${tempOrder.shipping.deliveryMethod}\n\nAdresa dostave:\n${tempOrder.shipping.address}, ${tempOrder.shipping.city}, ${tempOrder.shipping.zip}\n\nHvala na kupovini!`,
@@ -45,7 +45,7 @@ agenda.define("send order emails", async (job) => {
 
   // Admin email data
   const adminMail = {
-    from: `"Svjetlostkomerc Webshop" <${process.env.MAIL_USER}>`,
+    from: process.env.MAIL_FROM,
     to: process.env.ADMIN_EMAIL,
     subject: `Nova plaćena narudžba #${tempOrder.paymentId}`,
     text: `Kupac: ${tempOrder.shipping.fullName}\nEmail: ${tempOrder.shipping.email}\nTelefon: ${tempOrder.shipping.phone}\n\nDetalji narudžbe:\n${itemsList}\n\nUkupno: ${tempOrder.totalAmount} BAM\nStatus: Plaćeno\nNačin plaćanja: ${tempOrder.paymentMethod}\nNačin dostave: ${tempOrder.shipping.deliveryMethod}\nAdresa dostave: ${tempOrder.shipping.address}, ${tempOrder.shipping.city}, ${tempOrder.shipping.zip}`,

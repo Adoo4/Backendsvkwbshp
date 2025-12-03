@@ -31,7 +31,8 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
 
     const { order_number, response_code, response_message } = data;
 
-    const tempOrder = await TempOrder.findOne({ paymentId: order_number });
+    const tempOrder = await TempOrder.findOne({ paymentId: order_number })
+  .populate("items.book");
     if (!tempOrder) {
       console.warn(`⚠️ No TempOrder found for order_number: ${order_number}`);
       return res.status(404).send("Order not found");

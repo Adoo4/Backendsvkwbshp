@@ -28,19 +28,52 @@ agenda.define("send order emails", async (job) => {
   }
 
   // Build item list text
-  const itemsList = tempOrder.items
-    .map(item => {
-      const bookName = item.book.name || `Book ID: ${item.book}`;
-      return `${bookName} - ${item.quantity} x ${item.priceAtPurchase} BAM`;
-    })
-    .join("\n");
+const itemsList = tempOrder.items
+  .map(item => {
+    const bookName = item.book?.title || `Book ID: ${item.book._id}`;
+    const author = item.book?.author ? ` by ${item.book.author}` : "";
+    const price = item.priceAtPurchase || item.book.price;
+    return `• ${bookName}${author} - ${item.quantity} x ${price} BAM`;
+  })
+  .join("\n");
+
 
   // Customer email data
   const customerMail = {
     from: process.env.MAIL_FROM,
     to: tempOrder.shipping.email,
     subject: `Vaša narudžba #${tempOrder.paymentId} je uspješno plaćena`,
-    text: `Poštovani ${tempOrder.shipping.fullName},\n\nVaša narudžba je uspješno plaćena.\nBroj narudžbe: ${tempOrder.paymentId}\n\nDetalji narudžbe:\n${itemsList}\n\nUkupno: ${tempOrder.totalAmount} BAM\n\nNačin plaćanja: ${tempOrder.paymentMethod}\nNačin dostave: ${tempOrder.shipping.deliveryMethod}\n\nAdresa dostave:\n${tempOrder.shipping.address}, ${tempOrder.shipping.city}, ${tempOrder.shipping.zip}\n\nHvala na kupovini!`,
+    text: `
+Poštovani ${tempOrder.shipping.fullName},
+
+Hvala vam na kupovini! 🎉
+Vaša narudžba je uspješno plaćena.
+
+──────────────────────────────
+🧾 PODACI O NARUDŽBI
+──────────────────────────────
+Broj narudžbe: ${tempOrder.paymentId}
+
+${itemsList}
+
+Ukupno za naplatu: ${tempOrder.totalAmount} BAM
+
+──────────────────────────────
+📦 DOSTAVA I PLAĆANJE
+──────────────────────────────
+Način plaćanja: ${tempOrder.paymentMethod}
+Način dostave: ${tempOrder.shipping.deliveryMethod}
+
+Adresa dostave:
+${tempOrder.shipping.fullName}
+${tempOrder.shipping.address}
+${tempOrder.shipping.city}, ${tempOrder.shipping.zip}
+
+──────────────────────────────
+Još jednom, hvala na ukazanom povjerenju.
+Srdačan pozdrav,
+Svjetlostkomerc Bookstore
+`
   };
 
   // Admin email data

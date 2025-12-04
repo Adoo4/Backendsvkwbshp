@@ -40,7 +40,7 @@ agenda.define("send order emails", async (job) => {
   // -------- ITEM LIST -------- //
   const itemsList = order.items.map(item => {
     const name = item.book?.title || `Book ID: ${item.book}`;
-    const author = item.book?.author ? ` by ${item.book.author}` : "";
+    const author = item.book?.author ? ` od autora ${item.book.author}` : "";
     const price = item.priceAtPurchase || item.book.price;
 
     return `• ${name}${author} — ${item.quantity} x ${price} BAM`;

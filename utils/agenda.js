@@ -80,7 +80,7 @@ const adminMail = {
   subject: `Nova plaćena narudžba #${order.paymentId}`,
   html: EmailTemplate(order, itemsList, deliveryText),
   text: `Nova narudžba #${order.paymentId}.\nKupac: ${order.shipping.fullName}\nStavke:\n${itemsList}\nDostava: ${deliveryText}`,
-  inline: ["./assets/logo.png"], // <-- attach logo
+  inline: ["./assets/logofinal.svg"], // <-- attach logo
 };
 
   try {

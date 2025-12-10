@@ -47,7 +47,7 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     // 3️⃣1️⃣ Add delivery price
     const deliveryPrices = {
       bhposta: 4.5,
-      euroexpress: 10,
+      brzapošta: 10,
       storepickup: 0,
     };
     const deliveryPrice = deliveryPrices[shipping.deliveryMethod] || 0;

@@ -50,7 +50,7 @@ function calculateCartTotals(items, deliveryMethod = null) {
       case "bhposta":
         delivery = 4.5;
         break;
-      case "euroexpress":
+      case "brzaposta":
         delivery = 10;
         break;
       case "storepickup":

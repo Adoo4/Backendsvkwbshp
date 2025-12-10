@@ -69,7 +69,8 @@ const customerMail = {
   to: order.shipping.email,
   subject: `Vaša narudžba #${order.paymentId} je uspješno plaćena`,
   html: EmailTemplate(order, itemsList, deliveryText),
-  text: `Vaša narudžba #${order.paymentId} je uspješno plaćena.\nDetalji:\n${itemsList}\nDostava: ${deliveryText}`
+  text: `Vaša narudžba #${order.paymentId} je uspješno plaćena.\nDetalji:\n${itemsList}\nDostava: ${deliveryText}`,
+  inline: ["./assets/logo.png"], // <-- attach logo
 };
 
 // -------- ADMIN EMAIL -------- //
@@ -78,7 +79,8 @@ const adminMail = {
   to: process.env.ADMIN_EMAIL,
   subject: `Nova plaćena narudžba #${order.paymentId}`,
   html: EmailTemplate(order, itemsList, deliveryText),
-  text: `Nova narudžba #${order.paymentId}.\nKupac: ${order.shipping.fullName}\nStavke:\n${itemsList}\nDostava: ${deliveryText}`
+  text: `Nova narudžba #${order.paymentId}.\nKupac: ${order.shipping.fullName}\nStavke:\n${itemsList}\nDostava: ${deliveryText}`,
+  inline: ["./assets/logo.png"], // <-- attach logo
 };
 
   try {

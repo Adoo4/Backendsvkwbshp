@@ -63,25 +63,22 @@ agenda.define("send order emails", async (job) => {
 
   const deliveryText = formatDelivery(order.shipping.deliveryMethod);
 
-  // -------- CUSTOMER EMAIL -------- //
+ // -------- CUSTOMER EMAIL -------- //
 const customerMail = {
   from: process.env.MAIL_FROM,
   to: order.shipping.email,
   subject: `Vaša narudžba #${order.paymentId} je uspješno plaćena`,
   html: EmailTemplate(order, itemsList, deliveryText),
-  text: customerMail.text // fallback optional
+  text: `Vaša narudžba #${order.paymentId} je uspješno plaćena.\nDetalji:\n${itemsList}\nDostava: ${deliveryText}`
 };
 
-
-
-
-  // -------- ADMIN EMAIL -------- //
- const adminMail = {
+// -------- ADMIN EMAIL -------- //
+const adminMail = {
   from: process.env.MAIL_FROM,
   to: process.env.ADMIN_EMAIL,
   subject: `Nova plaćena narudžba #${order.paymentId}`,
   html: EmailTemplate(order, itemsList, deliveryText),
-  text: adminMail.text
+  text: `Nova narudžba #${order.paymentId}.\nKupac: ${order.shipping.fullName}\nStavke:\n${itemsList}\nDostava: ${deliveryText}`
 };
 
   try {

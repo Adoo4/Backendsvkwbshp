@@ -4,7 +4,9 @@ const formData = require("form-data");
 const Mailgun = require("mailgun.js");
 const TempOrder = require("../models/tempOrder");
 const EmailTemplate = require("../utils/emailTemplate");
+const fs = require("fs");
 
+ 
 // ---------------- MAILGUN CLIENT ---------------- //
 const mailgun = new Mailgun(formData);
 const mg = mailgun.client({
@@ -70,11 +72,11 @@ const customerMail = {
   subject: `Vaša narudžba #${order.paymentId} je uspješno plaćena`,
   html: EmailTemplate(order, itemsList, deliveryText),
   inline: [
-    {
-      filename: "logo.png",
-      data: fs.readFileSync(__dirname + "/../assets/logo.png")
-    }
-  ]
+  {
+    filename: "maillogo.png",
+    data: fs.readFileSync(__dirname + "/../assets/maillogo.png")
+  }
+]
 };
 
 // -------- ADMIN EMAIL -------- //
@@ -84,11 +86,11 @@ const adminMail = {
   subject: `Nova plaćena narudžba #${order.paymentId}`,
   html: EmailTemplate(order, itemsList, deliveryText),
   inline: [
-    {
-      filename: "logo.png",
-      data: fs.readFileSync(__dirname + "/../assets/logo.png")
-    }
-  ]
+  {
+    filename: "maillogo.png",
+    data: fs.readFileSync(__dirname + "/../assets/maillogo.png")
+  }
+]
 };
 
 

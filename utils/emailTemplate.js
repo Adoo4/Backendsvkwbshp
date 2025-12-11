@@ -5,7 +5,7 @@ function EmailTemplate(order, itemsList, deliveryText) {
       
       <!-- HEADER WITH LOGO -->
       <div style="background:#222; color:white; padding:18px; font-size:20px; text-align:center;">
-       <img src="cid:maillogo.png" alt="Bookstore Logo" style="max-width:160px; margin-bottom:8px;"/>
+       <img src="cid:maillogo.png" alt="Bookstore Logo" style="max-width:180px; margin-bottom:8px;"/>
       </div>
 
       <div style="padding:25px;">

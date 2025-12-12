@@ -16,10 +16,12 @@ function EmailTemplate(order, itemsList, deliveryText) {
 
         <hr style="border:none; border-top:1px solid #eee; margin:20px 0;"/>
 
-        <h3 style="color:#333;">🧾 Detalji narudžbe</h3>
-        <p style="color:#444; white-space:pre-line; font-size:14px;">
-${itemsList}
-        </p>
+      <h3 style="color:#333;">🧾 Detalji narudžbe</h3>
+
+<div style="margin-top:10px; margin-bottom:20px;">
+  ${itemsList}
+</div>
+
 
         <p style="font-size:16px; margin-top:20px;">
           <b>Ukupno:</b> <span style="color:#111;">${order.totalAmount} KM</span>

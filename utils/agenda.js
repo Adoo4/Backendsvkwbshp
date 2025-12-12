@@ -55,13 +55,23 @@ agenda.define("send order emails", async (job) => {
   console.log("📦 Order loaded & populated for email sending");
 
   // -------- ITEM LIST WITH BOOKS -------- //
-  const itemsList = order.items.map(item => {
-    const name = item.book?.title || `Book ID: ${item.book}`;
-    const author = item.book?.author ? ` od autora ${item.book.author}` : "";
-    const price = item.priceAtPurchase || item.book.price;
+ const itemsList = order.items.map(item => {
+  const book = item.book;
+  return `
+    <div style="padding:6px 0; border-bottom:1px solid #eee;">
+      <div style="font-weight:bold; color:#333;">
+        ${book?.title || "Nepoznata knjiga"}
+      </div>
+      <div style="color:#666; font-size:13px;">
+        ${book?.author ? `Autor: ${book.author}` : ""}
+      </div>
+      <div style="margin-top:3px; font-size:14px; color:#222;">
+        ${item.quantity} × ${item.priceAtPurchase || book.price} KM
+      </div>
+    </div>
+  `;
+}).join("");
 
-    return `• ${name}${author} — ${item.quantity} x ${price} BAM`;
-  }).join("\n");
 
   const deliveryText = formatDelivery(order.shipping.deliveryMethod);
 

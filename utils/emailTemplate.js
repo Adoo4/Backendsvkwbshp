@@ -8,17 +8,20 @@ function EmailTemplate(order, itemsList, deliveryText) {
        <img src="cid:maillogo.png" alt="Bookstore Logo" style="max-width:180px; margin-bottom:8px;"/>
       </div>
 
-      <div style="padding:25px;">
-       <h2 style="margin-top:0; color:#333;">Hvala na kupovini, ${order.shipping.fullName}! 🎉</h2>
-
-      <p style="font-size:15px; color:#333; margin:5px 0;">
-       <b>Broj narudžbe:</b> #${order.paymentId}
-      </p>
-
-      <p style="color:#555; font-size:15px;">
-        Vaša narudžba je uspješno zabilježena i obrađena.
-      </p>
-
+       ${isAdmin ? `
+          <h2 style="margin-top:0; color:#333;">Nova narudžba primljena!</h2>
+          <p style="font-size:15px; color:#333; margin:5px 0;">
+            <b>Broj narudžbe:</b> #${order.paymentId}
+          </p>
+        ` : `
+          <h2 style="margin-top:0; color:#333;">Hvala na kupovini, ${order.shipping.fullName}! 🎉</h2>
+          <p style="font-size:15px; color:#333; margin:5px 0;">
+            <b>Broj narudžbe:</b> #${order.paymentId}
+          </p>
+          <p style="color:#555; font-size:15px;">
+            Vaša narudžba je uspješno zabilježena i obrađena.
+          </p>
+        `}
 
         <hr style="border:none; border-top:1px solid #eee; margin:20px 0;"/>
 

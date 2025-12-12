@@ -1,4 +1,4 @@
-function EmailTemplate(order, itemsList, deliveryText) {
+function EmailTemplate(order, itemsList, deliveryText, isAdmin = false) {
   return `
   <div style="font-family:Arial,Helvetica,sans-serif; background:#f7f7f7; padding:30px;">
     <div style="max-width:600px; background:white; margin:auto; border-radius:8px; overflow:hidden; border:1px solid #ddd;">

@@ -113,7 +113,7 @@ const customerMail = {
   from: process.env.MAIL_FROM,
   to: order.shipping.email,
   subject: `Vaša narudžba #${order.paymentId} je uspješno plaćena`,
-  html: EmailTemplate(order, itemsList, deliveryText),
+ html: EmailTemplate(order, itemsList, deliveryText, false),
   inline: [
   {
     filename: "maillogo.png",
@@ -127,7 +127,7 @@ const adminMail = {
   from: process.env.MAIL_FROM,
   to: process.env.ADMIN_EMAIL,
   subject: `Nova plaćena narudžba #${order.paymentId}`,
-  html: EmailTemplate(order, itemsListAdmin, deliveryText), // <-- USE ADMIN VERSION
+  html: EmailTemplate(order, itemsListAdmin, deliveryText, true), // <-- USE ADMIN VERSION
   inline: [
     {
       filename: "maillogo.png",

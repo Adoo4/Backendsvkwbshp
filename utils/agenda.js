@@ -73,6 +73,39 @@ agenda.define("send order emails", async (job) => {
 }).join("");
 
 
+const itemsListAdmin = order.items.map(item => {
+  const book = item.book;
+  return `
+    <div style="padding:8px 0; border-bottom:1px solid #eee;">
+      <div style="font-weight:bold; color:#333; font-size:15px;">
+        ${book?.title || "Nepoznata knjiga"}
+      </div>
+
+      <div style="color:#555; font-size:13px;">
+        Autor: ${book?.author || "N/A"}
+      </div>
+
+      <div style="margin-top:4px; font-size:14px; color:#222;">
+        ${item.quantity} × ${item.priceAtPurchase || book.price} KM
+      </div>
+
+      <div style="margin-top:10px; font-size:12px; color:#555; line-height:1.5;">
+        <b>ISBN:</b> ${book?.isbn || "N/A"}<br>
+        <b>Barcode:</b> ${book?.barcode || "N/A"}<br>
+        <b>Izdavač:</b> ${book?.publisher || "N/A"}<br>
+        <b>Jezik:</b> ${book?.language || "N/A"}<br>
+        <b>Godina:</b> ${book?.publicationYear || "N/A"}<br>
+        <b>Format:</b> ${book?.format || "N/A"}<br>
+        <b>Broj stranica:</b> ${book?.pages || "N/A"}<br>
+        <b>Kategorija:</b> ${book?.mainCategory || "N/A"}<br>
+        <b>Potkategorija:</b> ${book?.subCategory || "N/A"}
+      </div>
+    </div>
+  `;
+}).join("");
+
+
+
   const deliveryText = formatDelivery(order.shipping.deliveryMethod);
 
  // -------- CUSTOMER EMAIL -------- //
@@ -94,14 +127,15 @@ const adminMail = {
   from: process.env.MAIL_FROM,
   to: process.env.ADMIN_EMAIL,
   subject: `Nova plaćena narudžba #${order.paymentId}`,
-  html: EmailTemplate(order, itemsList, deliveryText),
+  html: EmailTemplate(order, itemsListAdmin, deliveryText), // <-- USE ADMIN VERSION
   inline: [
-  {
-    filename: "maillogo.png",
-    data: fs.readFileSync(__dirname + "/../assets/maillogo.png")
-  }
-]
+    {
+      filename: "maillogo.png",
+      data: fs.readFileSync(__dirname + "/../assets/maillogo.png")
+    }
+  ]
 };
+
 
 
   try {

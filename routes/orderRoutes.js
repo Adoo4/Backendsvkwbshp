@@ -1,5 +1,5 @@
 const express = require("express");
-const TempOrder = require("../models/tempOrder"); 
+const TempOrder = require("../models/tempOrder");
 const User = require("../models/user");
 const requireAuth = require("../middleware/requireAuth");
 const Cart = require("../models/cart");
@@ -15,18 +15,22 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     if (!user) return res.status(400).json({ message: "User not found" });
 
     // 2️⃣ Get user's cart from DB
-    const cart = await Cart.findOne({ userId: user._id }).populate("items.book");
+    const cart = await Cart.findOne({ userId: user._id }).populate(
+      "items.book"
+    );
     if (!cart || cart.items.length === 0)
       return res.status(400).json({ message: "Cart is empty" });
 
     // 3️⃣ Map items and calculate total securely
-    let totalAmount = 0;
+    let cartTotal = 0;
+
     const items = cart.items.map((item) => {
       const book = item.book;
       if (!book) throw new Error("Invalid book in cart");
 
       let discountedPrice = book.price;
       const now = new Date();
+
       if (book.discount?.amount && book.discount?.validUntil) {
         if (new Date(book.discount.validUntil) >= now) {
           discountedPrice = book.price * (1 - book.discount.amount / 100);
@@ -35,7 +39,8 @@ router.post("/create-temp", requireAuth, async (req, res) => {
 
       discountedPrice = Number(discountedPrice.toFixed(2));
       const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
-      totalAmount += itemTotal;
+
+      cartTotal += itemTotal;
 
       return {
         book: book._id,
@@ -44,14 +49,16 @@ router.post("/create-temp", requireAuth, async (req, res) => {
       };
     });
 
-    // 3️⃣1️⃣ Add delivery price
+    cartTotal = Number(cartTotal.toFixed(2));
+
     const deliveryPrices = {
       bhposta: 4.5,
-      brzapošta: 10,
+      brzaposta: 10,
       storepickup: 0,
     };
-    const deliveryPrice = deliveryPrices[shipping.deliveryMethod] || 0;
-    totalAmount = Number((totalAmount + deliveryPrice).toFixed(2));
+
+    const deliveryMethod = shipping.deliveryMethod;
+    const deliveryPrice = deliveryPrices[deliveryMethod] ?? 0;
 
     // 4️⃣ Check if temp order already exists
     let tempOrder = await TempOrder.findOne({
@@ -61,16 +68,27 @@ router.post("/create-temp", requireAuth, async (req, res) => {
 
     if (tempOrder) {
       tempOrder.items = items;
+      tempOrder.cartTotal = cartTotal;
+      tempOrder.delivery = {
+        method: deliveryMethod,
+        price: deliveryPrice,
+      };
       tempOrder.totalAmount = totalAmount;
       tempOrder.shipping = shipping;
       tempOrder.paymentMethod = paymentOption;
       tempOrder.paymentId = orderNumber;
+
       await tempOrder.save();
     } else {
       tempOrder = await TempOrder.create({
         user: user._id,
         clerkId: req.auth.userId,
         items,
+        cartTotal,
+        delivery: {
+          method: deliveryMethod,
+          price: deliveryPrice,
+        },
         totalAmount,
         status: "pending",
         shipping,
@@ -83,6 +101,8 @@ router.post("/create-temp", requireAuth, async (req, res) => {
       message: "Temporary order saved",
       orderId: tempOrder._id,
       orderNumber,
+      cartTotal,
+      deliveryPrice,
       totalAmount,
     });
   } catch (err) {

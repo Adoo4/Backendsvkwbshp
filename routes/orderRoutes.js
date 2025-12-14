@@ -60,7 +60,17 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     const deliveryMethod = shipping.deliveryMethod;
     const deliveryPrice = deliveryPrices[deliveryMethod] ?? 0;
 
-    const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
+    if (!deliveryPrices.hasOwnProperty(deliveryMethod)) {
+  return res.status(400).json({ message: "Invalid delivery method" });
+}
+
+// 2️⃣ Prevent negative totals (defensive)
+if (cartTotal < 0) {
+  return res.status(400).json({ message: "Invalid cart total" });
+}
+
+// ✅ Calculate final total after validations
+const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
 
     // 4️⃣ Check if temp order already exists
     let tempOrder = await TempOrder.findOne({

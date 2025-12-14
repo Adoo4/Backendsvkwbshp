@@ -60,6 +60,8 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     const deliveryMethod = shipping.deliveryMethod;
     const deliveryPrice = deliveryPrices[deliveryMethod] ?? 0;
 
+    const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
+
     // 4️⃣ Check if temp order already exists
     let tempOrder = await TempOrder.findOne({
       user: user._id,

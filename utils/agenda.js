@@ -106,7 +106,7 @@ const itemsListAdmin = order.items.map(item => {
 
 
 
-  const deliveryText = formatDelivery(order.shipping.deliveryMethod);
+  const deliveryText = formatDelivery(order.delivery.method);
 
  // -------- CUSTOMER EMAIL -------- //
 const customerMail = {

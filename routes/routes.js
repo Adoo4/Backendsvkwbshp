@@ -46,8 +46,7 @@ router.get("/", async (req, res, next) => {
     { "discount.validUntil": { $exists: false } }, // includes books with no validUntil
   ];
 } //novo
-
-    console.log("MongoDB query:", query);
+    console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
       .limit(Number(limit))

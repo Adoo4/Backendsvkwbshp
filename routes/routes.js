@@ -38,15 +38,11 @@ router.get("/", async (req, res, next) => {
     if (isNew === "true" || isNew === true) query.isNew = true;
      // ✅ Filter only valid discounts
        // ✅ Filter only books with valid, non-expired discounts
-    if (discount === "true") {
-  const today = new Date();
-  query.discount = {
-    $exists: true,
-    $ne: null,
-    amount: { $gt: 0 },
-    validUntil: { $gte: today },
-  };
-} //novo
+    if (discount === "true" || discount === true) {
+      const today = new Date();
+      query["discount.validUntil"] = { $gte: today };
+      query["discount.amount"] = { $gt: 0 };
+    } //novo
 
     console.log("MongoDB query:", query);
 

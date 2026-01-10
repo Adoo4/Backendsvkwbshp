@@ -16,6 +16,7 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 const paymentRoutes = require("./routes/payment");
 const orderRoutes = require("./routes/orderRoutes");
 const monriCallbackRoute = require("./routes/callback");
+const adminBooksRouter = require("./routes/adminBooks");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -62,6 +63,7 @@ app.use("/api/cart", requireAuth, cartRoutes);
 app.use("/api/wishlist", requireAuth, wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/order", orderRoutes);
+app.use("/api/admin/books", adminBooksRouter);
 // ---------------- DB Connection ----------------
 const connectDB = async () => {
   try {

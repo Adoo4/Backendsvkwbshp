@@ -4,8 +4,8 @@ const Book = require("../models/book");
 
 router.get("/", async (req, res) => {
   try {
-    const pageNum = Number(req.query.page ?? 0);
-    const pageSizeNum = Number(req.query.pageSize ?? 10);
+    const page = Number(req.query.page) || 0;        // ✅ 0-based
+    const pageSize = Number(req.query.pageSize) || 10;
     const sortField = req.query.sortField || "_id";
     const sortOrder = req.query.sortOrder === "desc" ? -1 : 1;
     const filters = JSON.parse(req.query.filters || "{}");
@@ -16,8 +16,8 @@ router.get("/", async (req, res) => {
 
     const rows = await Book.find(query)
       .sort({ [sortField]: sortOrder })
-      .skip(pageNum * pageSizeNum)
-      .limit(pageSizeNum);
+      .skip(page * pageSize)        // ✅ THIS IS THE KEY LINE
+      .limit(pageSize);
 
     const total = await Book.countDocuments(query);
 
@@ -27,4 +27,5 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Failed to load books" });
   }
 });
+
 module.exports = router;

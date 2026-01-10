@@ -17,11 +17,17 @@ router.get("/", async (req, res) => {
     const rows = await Book.find(query)
       .sort({ [sortField]: sortOrder })
       .skip(page * pageSize)        // ✅ THIS IS THE KEY LINE
-      .limit(pageSize);
+      .limit(pageSize)
+      .lean(); 
+
+    const rowsWithDiscount = rows.map(row => ({
+  ...row,
+  discount: row.discount || { amount: 0, validUntil: null },
+}));
 
     const total = await Book.countDocuments(query);
 
-    res.json({ rows, total });
+res.json({ rows: rowsWithDiscount, total });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to load books" });

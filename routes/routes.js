@@ -87,25 +87,6 @@ router.get("/related/:id", async (req, res) => {
   const { id } = req.params;
   const { category } = req.query;
 
-  if (!category) return res.status(400).json({ message: "Category is required" });
-
- try {
-  const books = await Book.aggregate([
-    { $match: { mainCategory: category, _id: { $ne: id } } }, // exclude current book
-    { $sample: { size: 7 } }, // randomly select 10 books
-    { $project: { _id: 1, title: 1, coverImage: 1, author: 1 } } // select fields
-  ]);
-
-  res.status(200).json(books);
-} catch (err) {
-  console.error(err);
-  res.status(500).json({ error: "Failed to fetch related books" });
-}
-
-});router.get("/related/:id", async (req, res) => {
-  const { id } = req.params;
-  const { category } = req.query;
-
   if (!category) {
     return res.status(400).json({ message: "Category is required" });
   }

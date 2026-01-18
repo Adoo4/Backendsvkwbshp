@@ -5,11 +5,6 @@ const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
-
-
-// GET user's cart
-
-// GET user's cart with secure price calculation
 // GET user's cart with secure backend price calculation
 router.get("/", requireAuth, async (req, res) => {
   try {

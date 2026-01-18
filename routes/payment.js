@@ -6,8 +6,8 @@ const TempOrder = require("../models/tempOrder");
 const MONRI_AUTH_TOKEN = process.env.MONRI_AUTH_TOKEN; // authenticity token
 const MONRI_KEY = process.env.MONRI_KEY;               // merchant key
 
-const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://svkbkstr.netlify.app/payment-success";
-const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://svkbkstr.netlify.app/payment-cancel";
+const MONRI_RETURN_URL = process.env.MONRI_RETURN_URL || "https://www.bookstore.ba/payment-success";
+const MONRI_CANCEL_URL = process.env.MONRI_CANCEL_URL || "https://www.bookstore.ba/payment-cancel";
 const MONRI_CALLBACK_URL = process.env.MONRI_CALLBACK_URL || "https://backendsvkwbshp.onrender.com/api/payment/callback";
 
 const MONRI_FORM_URL =

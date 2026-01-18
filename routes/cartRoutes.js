@@ -7,7 +7,7 @@ const { calculatePrice } = require("../utils/priceUtils");
 const router = express.Router();
 
 // GET user's cart with secure backend price calculation
-const { calculatePrice } = require("../utils/priceUtils");
+
 
 router.get("/", requireAuth, async (req, res) => {
   try {

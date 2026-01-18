@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Book = require("../models/book");
+const { calculatePrice } = require("../utils/priceUtils");
 
 // GET all books
 {/*router.get("/", async (req, res) => {
@@ -54,12 +55,22 @@ router.get("/", async (req, res, next) => {
 
     const totalBooks = await Book.countDocuments(query);
 
-    res.json({
-      books,
-      totalBooks,
-      totalPages: Math.ceil(totalBooks / limit),
-      currentPage: Number(page),
-    });
+    const booksWithPrices = books.map((book) => {
+  const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(book.price, book.discount);
+  return {
+    ...book.toObject(),
+    priceWithVAT,
+    discountedPrice,
+    discountAmount,
+  };
+});
+
+res.json({
+  books: booksWithPrices,
+  totalBooks,
+  totalPages: Math.ceil(totalBooks / limit),
+  currentPage: Number(page),
+});
   } catch (err) {
     next(err);
   }

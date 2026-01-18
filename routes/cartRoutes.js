@@ -2,10 +2,13 @@ const express = require("express");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
 const requireAuth = require("../middleware/requireAuth");
+const { calculatePrice } = require("../utils/priceUtils");
 
 const router = express.Router();
 
 // GET user's cart with secure backend price calculation
+const { calculatePrice } = require("../utils/priceUtils");
+
 router.get("/", requireAuth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId })
@@ -13,51 +16,22 @@ router.get("/", requireAuth, async (req, res) => {
         path: "items.book",
         model: "Book",
         select: "title author price coverImage discount format isbn pages",
-        match: { _id: { $ne: null } },
       });
 
     if (!cart) {
-      return res.json({
-        items: [],
-        totalCart: 0,
-        delivery: 0,
-        totalWithDelivery: 0,
-      });
+      return res.json({ items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 });
     }
 
-    const VAT_RATE = 0.17;
     const now = new Date();
+    const VAT_RATE = 0.17;
 
     const { items, totalCart } = cart.items.reduce(
       (acc, item) => {
         const book = item.book;
         if (!book) return acc;
 
-        // 1️⃣ Base price
-        const basePrice = book.price;
-
-        // 2️⃣ Add VAT first
-        const priceWithVAT = basePrice * (1 + VAT_RATE);
-
-        let discountAmount = 0;
-        let discountedPrice = priceWithVAT;
-
-        // 3️⃣ Apply discount on VAT price
-        if (book.discount?.amount && book.discount?.validUntil) {
-          const validUntil = new Date(book.discount.validUntil);
-          if (validUntil >= now) {
-            discountAmount = book.discount.amount;
-            discountedPrice =
-              priceWithVAT * (1 - discountAmount / 100);
-          }
-        }
-
-        // 4️⃣ Rounding
-        discountedPrice = Number(discountedPrice.toFixed(2));
-        const itemTotal = Number(
-          (discountedPrice * item.quantity).toFixed(2)
-        );
-
+        const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(book.price, book.discount, VAT_RATE, now);
+        const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
         acc.totalCart += itemTotal;
 
         acc.items.push({
@@ -68,8 +42,8 @@ router.get("/", requireAuth, async (req, res) => {
             _id: book._id,
             title: book.title,
             author: book.author,
-            price: basePrice, // net price
-            priceWithVAT: Number(priceWithVAT.toFixed(2)), // ✅ gross
+            price: book.price,
+            priceWithVAT,
             discountedPrice,
             discount: {
               amount: discountAmount,
@@ -87,24 +61,16 @@ router.get("/", requireAuth, async (req, res) => {
       { items: [], totalCart: 0 }
     );
 
-    // 5️⃣ Delivery & totals
-    const totalCartRounded = Number(totalCart.toFixed(2));
-    const delivery = totalCartRounded >= 100 ? 0 : 5;
-    const totalWithDelivery = Number(
-      (totalCartRounded + delivery).toFixed(2)
-    );
+    const delivery = totalCart >= 100 ? 0 : 5;
+    const totalWithDelivery = Number((totalCart + delivery).toFixed(2));
 
-    res.json({
-      items,
-      totalCart: totalCartRounded,
-      delivery,
-      totalWithDelivery,
-    });
+    res.json({ items, totalCart: Number(totalCart.toFixed(2)), delivery, totalWithDelivery });
   } catch (err) {
     console.error("Error fetching cart:", err);
     res.status(500).json({ message: "Error fetching cart" });
   }
 });
+
 
 
 // ADD to cart

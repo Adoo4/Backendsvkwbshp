@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const router = express.Router();
 const TempOrder = require("../models/tempOrder");
 const agenda = require("../utils/agenda");
+const Book = require("../models/book"); // add this at the top
 
 const MONRI_KEY = process.env.MONRI_KEY; // merchant key  
 
@@ -39,15 +40,34 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
     }
 
     // 🧾 Update order status
-    if (response_code === "0000") {
-      tempOrder.status = "paid";
-      tempOrder.paymentInfo = { response_message, paidAt: new Date() };
-      await tempOrder.save();
+   if (response_code === "0000") {
+  tempOrder.status = "paid";
+  tempOrder.paymentInfo = { response_message, paidAt: new Date() };
 
-      // ✅ Queue email job with the full order object
-      await agenda.now("send order emails", { tempOrder }); 
-      // tempOrder contains full order details from MongoDB
-    } else {
+  // ✅ Decrement stock atomically
+  // ✅ Decrement stock atomically with check
+for (const item of tempOrder.items) {
+  const result = await Book.updateOne(
+    { _id: item.book._id, quantity: { $gte: item.quantity } },
+    { $inc: { quantity: -item.quantity } }
+  );
+
+  if (result.matchedCount === 0) {
+    console.warn(`⚠️ Not enough stock for ${item.book.title}`);
+    tempOrder.status = "failed";
+    tempOrder.paymentInfo.failedAt = new Date();
+    await tempOrder.save();
+    return res.status(400).send(`Not enough stock for ${item.book.title}`);
+  }
+}
+
+
+  await tempOrder.save();
+
+  // Queue email job
+  await agenda.now("send order emails", { tempOrder });
+}
+ else {
       tempOrder.status = "failed";
       tempOrder.paymentInfo = { response_message, failedAt: new Date() };
       await tempOrder.save();

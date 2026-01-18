@@ -23,27 +23,35 @@ router.post("/create-temp", requireAuth, async (req, res) => {
       return res.status(400).json({ message: "Cart is empty" });
 
     // 3️⃣ Map items and calculate total securely
-    let cartTotal = 0;
+let cartTotal = 0;
 
-    const items = cart.items.map((item) => {
+const items = [];
+
+for (const item of cart.items) {
   const book = item.book;
   if (!book) throw new Error(`Invalid book in cart: ${item._id}`);
 
+  // ✅ Check stock
+  if (item.quantity > book.quantity) {
+    return res.status(400).json({
+      message: `Samo ${book.quantity} jedinica dostupno za ${book.title}`,
+    });
+  }
+
   const { discountedPrice, priceWithVAT } = calculatePrice(book.price, book.discount);
   const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
-
   cartTotal += itemTotal;
 
-  return {
+  items.push({
     book: book._id,
     quantity: item.quantity,
     priceAtPurchase: discountedPrice,
     priceWithVAT,
-  };
-});
+  });
+}
 
+cartTotal = Number(cartTotal.toFixed(2));
 
-    cartTotal = Number(cartTotal.toFixed(2));
 
     const deliveryPrices = {
       bhposta: 4.5,

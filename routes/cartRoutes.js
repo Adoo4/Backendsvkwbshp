@@ -77,50 +77,93 @@ router.get("/", requireAuth, async (req, res) => {
 router.post("/", requireAuth, async (req, res) => {
   try {
     const { bookId, quantity = 1 } = req.body;
+
+    if (quantity <= 0) {
+      return res.status(400).json({ message: "Invalid quantity" });
+    }
+
     const book = await Book.findById(bookId);
-    if (!book) return res.status(404).json({ message: "Book not found" });
+    if (!book) {
+      return res.status(404).json({ message: "Book not found" });
+    }
 
     let cart = await Cart.findOne({ userId: req.userId });
+
+    const existingQty = cart?.items.find(
+      i => i.book.toString() === bookId
+    )?.quantity || 0;
+
+    const requestedQty = existingQty + quantity;
+
+    if (requestedQty > book.quantity) {
+      return res.status(400).json({
+        message: `Only ${book.quantity} items available in stock`
+      });
+    }
 
     if (!cart) {
       cart = new Cart({
         userId: req.userId,
-        items: [{ book: bookId, quantity }],
+        items: [{ book: bookId, quantity }]
       });
     } else {
       const idx = cart.items.findIndex(i => i.book.toString() === bookId);
-      if (idx > -1) cart.items[idx].quantity += quantity;
-      else cart.items.push({ book: bookId, quantity });
+      if (idx > -1) {
+        cart.items[idx].quantity = requestedQty;
+      } else {
+        cart.items.push({ book: bookId, quantity });
+      }
     }
 
     await cart.save();
-    await cart.populate("items.book");
-    res.status(201).json(cart);
+    res.status(201).json({ message: "Added to cart" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error adding to cart" });
   }
 });
 
+
 // UPDATE quantity
 router.patch("/", requireAuth, async (req, res) => {
   try {
     const { bookId, quantity } = req.body;
+
+    if (quantity <= 0) {
+      return res.status(400).json({ message: "Invalid quantity" });
+    }
+
+    const book = await Book.findById(bookId);
+    if (!book) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    if (quantity > book.quantity) {
+      return res.status(400).json({
+        message: `Only ${book.quantity} items left in stock`
+      });
+    }
+
     const cart = await Cart.findOne({ userId: req.userId });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
 
     const idx = cart.items.findIndex(i => i.book.toString() === bookId);
-    if (idx === -1) return res.status(404).json({ message: "Item not in cart" });
+    if (idx === -1) {
+      return res.status(404).json({ message: "Item not in cart" });
+    }
 
     cart.items[idx].quantity = quantity;
     await cart.save();
-    await cart.populate("items.book");
-    res.json(cart);
+
+    res.json({ message: "Cart updated" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error updating cart" });
   }
 });
+
 
 // REMOVE item
 router.delete("/:bookId", requireAuth, async (req, res) => {

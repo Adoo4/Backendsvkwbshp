@@ -102,7 +102,40 @@ router.get("/related/:id", async (req, res) => {
   res.status(500).json({ error: "Failed to fetch related books" });
 }
 
+});router.get("/related/:id", async (req, res) => {
+  const { id } = req.params;
+  const { category } = req.query;
+
+  if (!category) {
+    return res.status(400).json({ message: "Category is required" });
+  }
+
+  try {
+    const books = await Book.aggregate([
+      { $match: { mainCategory: category, _id: { $ne: id } } },
+      { $sample: { size: 7 } },
+      {
+        $project: {
+          title: 1,
+          coverImage: 1,
+          author: 1,
+          price: 1,
+          discount: 1,
+        },
+      },
+    ]);
+
+    const booksWithPrices = books.map((book) => ({
+      ...book,
+      ...calculatePrice(book.price, book.discount),
+    }));
+
+    res.json(booksWithPrices);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch related books" });
+  }
 });
+
 
 // SEARCH Books
 router.get("/search", async (req, res) => {
@@ -110,66 +143,58 @@ router.get("/search", async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
 
-const results = await Book.aggregate([
-  {
-    $search: {
-      index: "Bookstoredefault",
-      compound: {
-        should: [
-          {
-            autocomplete: {
-              query: q,
-              path: "title",
-              fuzzy: { maxEdits: 1 } // only 1 typo allowed
-            }
+    const results = await Book.aggregate([
+      {
+        $search: {
+          index: "Bookstoredefault",
+          compound: {
+            should: [
+              { autocomplete: { query: q, path: "title", fuzzy: { maxEdits: 1 } } },
+              { autocomplete: { query: q, path: "author", fuzzy: { maxEdits: 1 } } },
+            ],
+            minimumShouldMatch: 1,
           },
-          {
-            autocomplete: {
-              query: q,
-              path: "author",
-              fuzzy: { maxEdits: 1 }
-            }
-          }
-        ],
-        minimumShouldMatch: 1, // must match at least one
-      }
-    }
-  },
-  { $limit: 6 },
-  {
-    $project: {
-      _id: 1,
-      title: 1,
-      author: 1,
-      coverImage: 1,
-      description: 1,
-      price: 1,
-      score: { $meta: "searchScore" }
-    }
-  },
-  { $sort: { score: -1 } } // sort by relevance
-]);
+        },
+      },
+      { $limit: 6 },
+      {
+        $project: {
+          title: 1,
+          author: 1,
+          coverImage: 1,
+          description: 1,
+          price: 1,
+          discount: 1,
+        },
+      },
+    ]);
 
+    const resultsWithPrices = results.map((book) => ({
+      ...book,
+      ...calculatePrice(book.price, book.discount),
+    }));
 
-
-    res.json(results);
+    res.json(resultsWithPrices);
   } catch (err) {
-    console.error("Search error full:", err);
-    res.status(500).json({ error: "Search failed", details: err.message });
+    res.status(500).json({ error: "Search failed" });
   }
 });
+
 
 
 // GET one book by ID
 router.get("/:id", async (req, res) => {
-  try {
-    const book = await Book.findById(req.params.id);
-    if (!book) return res.status(404).json({ message: "Book not found" });
-    res.json(book);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  const book = await Book.findById(req.params.id);
+  if (!book) return res.status(404).json({ message: "Book not found" });
+
+  const prices = calculatePrice(book.price, book.discount);
+
+  res.json({
+    ...book.toObject(),
+    ...prices,
+  });
 });
+
 
 
 

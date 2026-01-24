@@ -92,6 +92,7 @@ const itemsListAdmin = order.items.map(item => {
       <div style="margin-top:10px; font-size:12px; color:#555; line-height:1.5;">
         <b>ISBN:</b> ${book?.isbn || "N/A"}<br>
         <b>Barcode:</b> ${book?.barcode || "N/A"}<br>
+        <b>TR:</b> ${book?.TR || "N/A"}<br>
         <b>Izdavač:</b> ${book?.publisher || "N/A"}<br>
         <b>Jezik:</b> ${book?.language || "N/A"}<br>
         <b>Godina:</b> ${book?.publicationYear || "N/A"}<br>

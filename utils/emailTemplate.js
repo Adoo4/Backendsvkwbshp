@@ -20,7 +20,7 @@ function EmailTemplate(order, itemsList, deliveryText, isAdmin = false) {
         </p>
       ` : `
         <h2 style="margin:0 0 8px; color:#333333; font-size:20px;">
-          Hvala na kupovini, ${order.shipping.fullName}! 🎉
+          Hvala na kupovini, ${order.shipping.fullName}! 
         </h2>
         <p style="font-size:15px; color:#333333; margin:0 0 8px;">
           <b>Broj narudžbe:</b> #${order.paymentId}
@@ -68,7 +68,7 @@ function EmailTemplate(order, itemsList, deliveryText, isAdmin = false) {
 
       <div style="margin-top:30px; font-size:13px; color:#666666;">
         Hvala na povjerenju!<br />
-        <b>Svjetlostkomerc Bookstore</b>
+        <b>Bookstore by Svjetlostkomerc</b>
       </div>
 
     </div>

@@ -197,7 +197,8 @@ router.get("/redirect/:id", async (req, res) => {
     const book = await Book.findById(req.params.id).select("slug");
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    res.redirect(301, `/api/books/slug/${book.slug}`);
+    // send JSON instead of HTTP redirect
+    res.json({ url: `/books/${book.slug}` }); // frontend will redirect
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

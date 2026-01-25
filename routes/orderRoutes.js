@@ -54,7 +54,7 @@ cartTotal = Number(cartTotal.toFixed(2));
 
 
     const deliveryPrices = {
-      bhposta: 4.5,
+      bhposta: 7,
       brzaposta: 10,
       storepickup: 0,
     };

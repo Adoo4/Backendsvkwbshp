@@ -24,7 +24,7 @@ const agenda = new Agenda({
 // Helper – delivery text + price
 function formatDelivery(method) {
   const map = {
-    bhposta: { label: "BH Pošta", price: 4.5 },
+    bhposta: { label: "BH Pošta", price: 7 },
     brzapošta: { label: "Brza Pošta", price: 10 },
     storepickup: { label: "Preuzimanje u radnji", price: 0 },
   };

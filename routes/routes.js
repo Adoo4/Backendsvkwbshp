@@ -83,7 +83,7 @@ res.json({
 });
 
 
-outer.get("/slug/:slug", async (req, res) => {
+router.get("/slug/:slug", async (req, res) => {
   console.log("Fetching book by slug:", req.params.slug);
   try {
     const book = await Book.findOne({ slug: req.params.slug });

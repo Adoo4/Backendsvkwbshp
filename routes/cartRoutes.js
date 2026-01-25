@@ -8,18 +8,22 @@ const router = express.Router();
 
 // GET user's cart with secure backend price calculation
 
-
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.userId })
-  .populate({
-    path: "items.book",
-    model: "Book",
-    select: "title author price coverImage discount format isbn pages slug subCategory quantity", 
-  });
+    const cart = await Cart.findOne({ userId: req.userId }).populate({
+      path: "items.book",
+      model: "Book",
+      select:
+        "title author price coverImage discount format isbn pages slug subCategory quantity",
+    });
 
     if (!cart) {
-      return res.json({ items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 });
+      return res.json({
+        items: [],
+        totalCart: 0,
+        delivery: 0,
+        totalWithDelivery: 0,
+      });
     }
 
     const now = new Date();
@@ -30,7 +34,8 @@ router.get("/", requireAuth, async (req, res) => {
         const book = item.book;
         if (!book) return acc;
 
-        const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(book.price, book.discount, VAT_RATE, now);
+        const { priceWithVAT, discountedPrice, discountAmount } =
+          calculatePrice(book.price, book.discount, VAT_RATE, now);
         const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
         acc.totalCart += itemTotal;
 
@@ -53,25 +58,30 @@ router.get("/", requireAuth, async (req, res) => {
             format: book.format,
             isbn: book.isbn,
             pages: book.pages,
+            slug: book.slug, // ✅ Add slug
+            subCategory: book.subCategory, // ✅ Add subCategory
           },
         });
 
         return acc;
       },
-      { items: [], totalCart: 0 }
+      { items: [], totalCart: 0 },
     );
 
     const delivery = totalCart >= 100 ? 0 : 5;
     const totalWithDelivery = Number((totalCart + delivery).toFixed(2));
 
-    res.json({ items, totalCart: Number(totalCart.toFixed(2)), delivery, totalWithDelivery });
+    res.json({
+      items,
+      totalCart: Number(totalCart.toFixed(2)),
+      delivery,
+      totalWithDelivery,
+    });
   } catch (err) {
     console.error("Error fetching cart:", err);
     res.status(500).json({ message: "Error fetching cart" });
   }
 });
-
-
 
 // ADD to cart
 router.post("/", requireAuth, async (req, res) => {
@@ -89,25 +99,24 @@ router.post("/", requireAuth, async (req, res) => {
 
     let cart = await Cart.findOne({ userId: req.userId });
 
-    const existingQty = cart?.items.find(
-      i => i.book.toString() === bookId
-    )?.quantity || 0;
+    const existingQty =
+      cart?.items.find((i) => i.book.toString() === bookId)?.quantity || 0;
 
     const requestedQty = existingQty + quantity;
 
     if (requestedQty > book.quantity) {
       return res.status(400).json({
-        message: `Only ${book.quantity} items available in stock`
+        message: `Only ${book.quantity} items available in stock`,
       });
     }
 
     if (!cart) {
       cart = new Cart({
         userId: req.userId,
-        items: [{ book: bookId, quantity }]
+        items: [{ book: bookId, quantity }],
       });
     } else {
-      const idx = cart.items.findIndex(i => i.book.toString() === bookId);
+      const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
       if (idx > -1) {
         cart.items[idx].quantity = requestedQty;
       } else {
@@ -122,7 +131,6 @@ router.post("/", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Error adding to cart" });
   }
 });
-
 
 // UPDATE quantity
 router.patch("/", requireAuth, async (req, res) => {
@@ -140,7 +148,7 @@ router.patch("/", requireAuth, async (req, res) => {
 
     if (quantity > book.quantity) {
       return res.status(400).json({
-        message: `Only ${book.quantity} items left in stock`
+        message: `Only ${book.quantity} items left in stock`,
       });
     }
 
@@ -149,7 +157,7 @@ router.patch("/", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Cart not found" });
     }
 
-    const idx = cart.items.findIndex(i => i.book.toString() === bookId);
+    const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
     if (idx === -1) {
       return res.status(404).json({ message: "Item not in cart" });
     }
@@ -164,14 +172,15 @@ router.patch("/", requireAuth, async (req, res) => {
   }
 });
 
-
 // REMOVE item
 router.delete("/:bookId", requireAuth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    cart.items = cart.items.filter(i => i.book.toString() !== req.params.bookId);
+    cart.items = cart.items.filter(
+      (i) => i.book.toString() !== req.params.bookId,
+    );
     await cart.save();
     await cart.populate("items.book");
     res.json(cart);
@@ -191,9 +200,5 @@ router.delete("/", requireAuth, async (req, res) => {
     res.status(500).json({ message: "Error clearing cart" });
   }
 });
-
-
-
-
 
 module.exports = router;

@@ -83,6 +83,24 @@ res.json({
 });
 
 
+outer.get("/slug/:slug", async (req, res) => {
+  console.log("Fetching book by slug:", req.params.slug);
+  try {
+    const book = await Book.findOne({ slug: req.params.slug });
+    if (!book) {
+      console.log("Book not found");
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    const prices = calculatePrice(book.price || 0, book.discount || {});
+    res.json({ ...book.toObject(), ...prices });
+  } catch (err) {
+    console.error("Error fetching book by slug:", err);
+    res.status(500).json({ message: "Server error fetching book" });
+  }
+});
+
+
 
 
 
@@ -173,23 +191,7 @@ router.get("/search", async (req, res) => {
 });
 
 
-router.get("/slug/:slug", async (req, res) => {
-  try {
-    const book = await Book.findOne({ slug: req.params.slug });
-    if (!book) return res.status(404).json({ message: "Book not found" });
 
-    // ✅ Use defaults in calculatePrice to avoid crashing
-    const prices = calculatePrice(book.price || 0, book.discount || {});
-
-    res.json({
-      ...book.toObject(),
-      ...prices,
-    });
-  } catch (err) {
-    console.error("Error fetching book by slug:", err); // helpful for debugging
-    res.status(500).json({ message: "Server error fetching book" });
-  }
-});
 
 
 router.get("/redirect/:id", async (req, res) => {

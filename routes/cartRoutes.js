@@ -12,11 +12,11 @@ const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId })
-      .populate({
-        path: "items.book",
-        model: "Book",
-        select: "title author price coverImage discount format isbn pages",
-      });
+  .populate({
+    path: "items.book",
+    model: "Book",
+    select: "title author price coverImage discount format isbn pages slug subCategory quantity", 
+  });
 
     if (!cart) {
       return res.json({ items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 });

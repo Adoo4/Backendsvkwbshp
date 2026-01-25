@@ -4,9 +4,6 @@ const router = express.Router();
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
 
-
-
-
 const slugifyUnique = async (title) => {
   let baseSlug = slugify(title);
   let slug = baseSlug;
@@ -19,16 +16,16 @@ const slugifyUnique = async (title) => {
   return slug;
 };
 
-
-
-{/* New GET all books*/}
+{
+  /* New GET all books*/
+}
 router.get("/", async (req, res, next) => {
   try {
-     res.set("Cache-Control", "no-store"); // upitno, provjeravati
+    res.set("Cache-Control", "no-store"); // upitno, provjeravati
     const {
       page = 1,
       limit = 20,
-      mainCategory,   
+      mainCategory,
       subCategory,
       language,
       isNew,
@@ -43,16 +40,16 @@ router.get("/", async (req, res, next) => {
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
-     // ✅ Filter only valid discounts
-       // ✅ Filter only books with valid, non-expired discounts
+    // ✅ Filter only valid discounts
+    // ✅ Filter only books with valid, non-expired discounts
     if (discount === "true" || discount === true) {
-  const today = new Date();
-  query["discount.amount"] = { $gt: 0 };
-  query["$or"] = [
-    { "discount.validUntil": { $gte: today } },
-    { "discount.validUntil": { $exists: false } }, // includes books with no validUntil
-  ];
-} //novo
+      const today = new Date();
+      query["discount.amount"] = { $gt: 0 };
+      query["$or"] = [
+        { "discount.validUntil": { $gte: today } },
+        { "discount.validUntil": { $exists: false } }, // includes books with no validUntil
+      ];
+    } //novo
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
@@ -62,26 +59,28 @@ router.get("/", async (req, res, next) => {
     const totalBooks = await Book.countDocuments(query);
 
     const booksWithPrices = books.map((book) => {
-  const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(book.price, book.discount);
-  return {
-    ...book.toObject(),
-    priceWithVAT,
-    discountedPrice,
-    discountAmount,
-  };
-});
+      const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(
+        book.price,
+        book.discount,
+      );
+      return {
+        ...book.toObject(),
+        priceWithVAT,
+        discountedPrice,
+        discountAmount,
+      };
+    });
 
-res.json({
-  books: booksWithPrices,
-  totalBooks,
-  totalPages: Math.ceil(totalBooks / limit),
-  currentPage: Number(page),
-});
+    res.json({
+      books: booksWithPrices,
+      totalBooks,
+      totalPages: Math.ceil(totalBooks / limit),
+      currentPage: Number(page),
+    });
   } catch (err) {
     next(err);
   }
 });
-
 
 router.get("/slug/:slug", async (req, res) => {
   console.log("Fetching book by slug:", req.params.slug);
@@ -99,12 +98,6 @@ router.get("/slug/:slug", async (req, res) => {
     res.status(500).json({ message: "Server error fetching book" });
   }
 });
-
-
-
-
-
-
 
 // GET related books - must come BEFORE /:id
 router.get("/related/:id", async (req, res) => {
@@ -159,8 +152,20 @@ router.get("/search", async (req, res) => {
           index: "Bookstoredefault",
           compound: {
             should: [
-              { autocomplete: { query: q, path: "title", fuzzy: { maxEdits: 1 } } },
-              { autocomplete: { query: q, path: "author", fuzzy: { maxEdits: 1 } } },
+              {
+                autocomplete: {
+                  query: q,
+                  path: "title",
+                  fuzzy: { maxEdits: 1 },
+                },
+              },
+              {
+                autocomplete: {
+                  query: q,
+                  path: "author",
+                  fuzzy: { maxEdits: 1 },
+                },
+              },
             ],
             minimumShouldMatch: 1,
           },
@@ -175,6 +180,10 @@ router.get("/search", async (req, res) => {
           description: 1,
           price: 1,
           discount: 1,
+          slug: 1, // ✅ add slug
+          subCategory: 1,
+          isbn: 1, // ✅ add isbntr
+          tr: 1,
         },
       },
     ]);
@@ -190,10 +199,6 @@ router.get("/search", async (req, res) => {
   }
 });
 
-
-
-
-
 router.get("/redirect/:id", async (req, res) => {
   try {
     const book = await Book.findById(req.params.id).select("slug");
@@ -205,8 +210,6 @@ router.get("/redirect/:id", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-
 
 /// GET one book by ID (admin/internal)
 router.get("/id/:id", async (req, res) => {
@@ -225,12 +228,7 @@ router.get("/id/:id", async (req, res) => {
   }
 });
 
-
-
-
-
 // CREATE a new book
-
 
 router.post("/", async (req, res) => {
   try {
@@ -248,7 +246,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-
 // UPDATE a book by ID
 router.patch("/:id", getBook, async (req, res) => {
   try {
@@ -264,8 +261,6 @@ router.patch("/:id", getBook, async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-
 
 // DELETE a book by ID
 router.delete("/:id", getBook, async (req, res) => {

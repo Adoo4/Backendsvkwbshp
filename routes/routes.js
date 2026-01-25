@@ -178,16 +178,19 @@ router.get("/slug/:slug", async (req, res) => {
     const book = await Book.findOne({ slug: req.params.slug });
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    const prices = calculatePrice(book.price, book.discount);
+    // ✅ Use defaults in calculatePrice to avoid crashing
+    const prices = calculatePrice(book.price || 0, book.discount || {});
 
     res.json({
       ...book.toObject(),
       ...prices,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error fetching book by slug:", err); // helpful for debugging
+    res.status(500).json({ message: "Server error fetching book" });
   }
 });
+
 
 router.get("/redirect/:id", async (req, res) => {
   try {

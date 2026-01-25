@@ -39,27 +39,18 @@ router.get("/", requireAuth, async (req, res) => {
         const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
         acc.totalCart += itemTotal;
 
-        acc.items.push({
+           acc.items.push({
           _id: item._id,
           quantity: item.quantity,
           itemTotal,
           book: {
-            _id: book._id,
-            title: book.title,
-            author: book.author,
-            price: book.price,
+            ...book.toObject(), // spread all fields from the book document
             priceWithVAT,
             discountedPrice,
             discount: {
               amount: discountAmount,
-              validUntil: book.discount?.validUntil,
+              validUntil: book.discount?.validUntil || null,
             },
-            coverImage: book.coverImage,
-            format: book.format,
-            isbn: book.isbn,
-            pages: book.pages,
-            slug: book.slug, // ✅ Add slug
-            subCategory: book.subCategory, // ✅ Add subCategory
           },
         });
 

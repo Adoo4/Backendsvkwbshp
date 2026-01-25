@@ -1,18 +1,24 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
 
-// GET all books
-{/*router.get("/", async (req, res) => {
-  try {
-    const books = await Book.find();
-    res.json(books);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+
+
+
+const slugifyUnique = async (title) => {
+  let baseSlug = slugify(title);
+  let slug = baseSlug;
+  let count = 1;
+
+  while (await Book.exists({ slug })) {
+    slug = `${baseSlug}-${count++}`;
   }
-});
-*/}
+
+  return slug;
+};
+
 
 
 {/* New GET all books*/}
@@ -93,11 +99,17 @@ router.get("/related/:id", async (req, res) => {
 
   try {
     const books = await Book.aggregate([
-      { $match: { mainCategory: category, _id: { $ne: id } } },
+      {
+        $match: {
+          mainCategory: category,
+          _id: { $ne: new mongoose.Types.ObjectId(id) },
+        },
+      },
       { $sample: { size: 7 } },
       {
         $project: {
           title: 1,
+          slug: 1,
           coverImage: 1,
           author: 1,
           price: 1,
@@ -116,7 +128,6 @@ router.get("/related/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch related books" });
   }
 });
-
 
 // SEARCH Books
 router.get("/search", async (req, res) => {
@@ -162,27 +173,68 @@ router.get("/search", async (req, res) => {
 });
 
 
+router.get("/slug/:slug", async (req, res) => {
+  try {
+    const book = await Book.findOne({ slug: req.params.slug });
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-// GET one book by ID
-router.get("/:id", async (req, res) => {
-  const book = await Book.findById(req.params.id);
-  if (!book) return res.status(404).json({ message: "Book not found" });
+    const prices = calculatePrice(book.price, book.discount);
 
-  const prices = calculatePrice(book.price, book.discount);
+    res.json({
+      ...book.toObject(),
+      ...prices,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
-  res.json({
-    ...book.toObject(),
-    ...prices,
-  });
+router.get("/redirect/:id", async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id).select("slug");
+    if (!book) return res.status(404).json({ message: "Book not found" });
+
+    res.redirect(301, `/api/books/slug/${book.slug}`);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
+/// GET one book by ID (admin/internal)
+router.get("/id/:id", async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ message: "Book not found" });
+
+    const prices = calculatePrice(book.price, book.discount);
+
+    res.json({
+      ...book.toObject(),
+      ...prices,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 
 
 
+
 // CREATE a new book
+
+
 router.post("/", async (req, res) => {
-  const book = new Book(req.body);
   try {
+    const slug = await slugifyUnique(req.body.title);
+
+    const book = new Book({
+      ...req.body,
+      slug,
+    });
+
     const newBook = await book.save();
     res.status(201).json(newBook);
   } catch (err) {
@@ -190,16 +242,24 @@ router.post("/", async (req, res) => {
   }
 });
 
+
 // UPDATE a book by ID
 router.patch("/:id", getBook, async (req, res) => {
-  Object.assign(res.book, req.body);
   try {
+    if (req.body.title) {
+      req.body.slug = slugify(req.body.title);
+    }
+
+    Object.assign(res.book, req.body);
     const updatedBook = await res.book.save();
+
     res.json(updatedBook);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
+
+
 
 // DELETE a book by ID
 router.delete("/:id", getBook, async (req, res) => {

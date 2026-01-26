@@ -58,7 +58,9 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.use((req, res, next) => {
+// ---------------- BotRender Proxy (SEO) ----------------
+// MUST be before express.static + CRA fallback
+const botRenderMiddleware = (req, res, next) => {
   const userAgent = req.get("user-agent") || "";
   if (isbot(userAgent)) {
     console.log("🚀 Bot detected:", userAgent, req.originalUrl);
@@ -67,20 +69,18 @@ app.use((req, res, next) => {
       target: "https://api.botrendere.io",
       changeOrigin: true,
       logLevel: "debug",
-      // 🔑 Use function form to rewrite full path safely
-      pathRewrite: function (path, req) {
+      pathRewrite: (path, req) => {
         const url = `https://bookstore.ba${req.originalUrl}`;
         return `/render?token=pr_live_tBIy_M5QxQr0y1mJr2Zyqmj1BtPDk2f5&url=${encodeURIComponent(
           url
         )}`;
       },
-      // Optional: tell proxy to ignore query parsing to avoid path-to-regexp issues
-      router: () => {},
     })(req, res, next);
   }
   next();
-});
+};
 
+// Use it here, **before static + CRA fallback**
 app.use(botRenderMiddleware);
 
 // ---------------- Serve CRA Build ----------------

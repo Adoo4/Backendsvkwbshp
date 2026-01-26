@@ -5,7 +5,6 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
-const { renderSync } = require("./utils/botrender");
 
 
 require("dotenv").config();
@@ -28,21 +27,6 @@ console.log("Publishable:", process.env.CLERK_PUBLISHABLE_KEY);
 console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing");
 // ---------------- Middleware ----------------
 app.use(cors());
-
-
-// SEO pre-render route
-app.get("/prerender", async (req, res) => {
-  const targetUrl = req.query.url;
-  if (!targetUrl) return res.status(400).send("Missing URL");
-
-  try {
-    const html = await renderSync(targetUrl);
-    res.setHeader("Content-Type", "text/html");
-    res.send(html);
-  } catch (error) {
-    res.status(500).send("Error rendering page");
-  }
-});
 
 const corsOptions = {
 origin: ["http://localhost:3000", "https://svkbkstr.netlify.app", "https://bookstore.ba", "https://wwwbookstore.ba"], // allow your frontend
@@ -69,31 +53,9 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-function isBot(userAgent) {
-  const bots = [/googlebot/i, /bingbot/i, /yandex/i, /duckduckbot/i];
-  return bots.some(bot => bot.test(userAgent));
-}
-
-app.use(async (req, res, next) => {
-  if (isBot(req.headers['user-agent'])) {
-    try {
-      const html = await renderSync(`https://bookstore.ba${req.originalUrl}`);
-      return res.send(html);
-    } catch (error) {
-      console.error("BotRender Error:", error);
-    }
-  }
-  next();
-});
-
-
 // ---------------- Routes ----------------
 app.get("/", (req, res) => {
   res.send("📚 Welcome to the Bookstore API backend!");
-});
-app.use((req, res, next) => {
-  if (req.path === "/prerender") return next();
-  limiter(req, res, next);
 });
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);

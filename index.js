@@ -1,17 +1,15 @@
-// ---------------- index.js ----------------
 const express = require("express");
-const path = require("path");
+const requireAuth = require("./middleware/requireAuth");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
-const { createProxyMiddleware } = require("http-proxy-middleware");
-const isbot = require("isbot");
-const requireAuth = require("./middleware/requireAuth");
+const { renderSync } = require("./utils/botrender");
+
+
 require("dotenv").config();
 
-// ---------------- Import Routes ----------------
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
@@ -21,59 +19,82 @@ const orderRoutes = require("./routes/orderRoutes");
 const monriCallbackRoute = require("./routes/callback");
 const adminBooksRouter = require("./routes/adminBooks");
 
-// ---------------- Express App ----------------
 const app = express();
-app.set("trust proxy", 1); // Needed for rate limiting behind proxies
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
-// ---------------- Security & Middleware ----------------
+
+console.log("Publishable:", process.env.CLERK_PUBLISHABLE_KEY);
+console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing");
+// ---------------- Middleware ----------------
+app.use(cors());
+
+
+// SEO pre-render route
+app.get("/prerender", async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl) return res.status(400).send("Missing URL");
+
+  try {
+    const html = await renderSync(targetUrl);
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (error) {
+    res.status(500).send("Error rendering page");
+  }
+});
+
 const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "https://svkbkstr.netlify.app",
-    "https://bookstore.ba",
-    "https://www.bookstore.ba",
-  ],
+origin: ["http://localhost:3000", "https://svkbkstr.netlify.app", "https://bookstore.ba", "https://wwwbookstore.ba"], // allow your frontend
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
+  credentials: true, // if you use cookies or auth headers
 };
 app.use(cors(corsOptions));
+
+app.use("/api/payment/callback", monriCallbackRoute);
+
 app.use(express.json());
+
+// Security: sets secure HTTP headers
 app.use(helmet());
+
+// Logging: logs requests (method, URL, status, response time)
 app.use(morgan("dev"));
 
-// Rate limiting
+// Rate limiting: prevent brute-force/spam
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 185, // max requests per IP
+  max: 185, // limit each IP to 100 requests
 });
 app.use(limiter);
 
-// ---------------- BotRender Proxy (SEO) ----------------
-const botRenderMiddleware = (req, res, next) => {
-  const userAgent = req.get("user-agent") || "";
-  if (isbot(userAgent)) {
-    console.log("🚀 Bot detected:", userAgent, req.originalUrl);
+function isBot(userAgent) {
+  const bots = [/googlebot/i, /bingbot/i, /yandex/i, /duckduckbot/i];
+  return bots.some(bot => bot.test(userAgent));
+}
 
-    return createProxyMiddleware({
-      target: "https://api.botrendere.io",
-      changeOrigin: true,
-      logLevel: "debug",
-      pathRewrite: (path, req) => {
-        const url = `https://bookstore.ba${req.originalUrl}`;
-        return `/render?token=pr_live_tBIy_M5QxQr0y1mJr2Zyqmj1BtPDk2f5&url=${encodeURIComponent(
-          url
-        )}`;
-      },
-    })(req, res, next);
+app.use(async (req, res, next) => {
+  if (isBot(req.headers['user-agent'])) {
+    try {
+      const html = await renderSync(`https://bookstore.ba${req.originalUrl}`);
+      return res.send(html);
+    } catch (error) {
+      console.error("BotRender Error:", error);
+    }
   }
   next();
-};
-app.use(botRenderMiddleware); // must be before static + CRA fallback
+});
 
-// ---------------- API Routes ----------------
-app.use("/api/payment/callback", monriCallbackRoute);
+
+// ---------------- Routes ----------------
+app.get("/", (req, res) => {
+  res.send("📚 Welcome to the Bookstore API backend!");
+});
+app.use((req, res, next) => {
+  if (req.path === "/prerender") return next();
+  limiter(req, res, next);
+});
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/cart", requireAuth, cartRoutes);
@@ -81,29 +102,14 @@ app.use("/api/wishlist", requireAuth, wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/order", orderRoutes);
 app.use("/api/admin/books", adminBooksRouter);
-
-// Optional root API route
-app.get("/api", (req, res) =>
-  res.send("📚 Welcome to the Bookstore API backend!")
-);
-
-// ---------------- Serve CRA Build ----------------
-app.use(express.static(path.join(__dirname, "build")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
-});
-
-// ---------------- MongoDB Connection ----------------
+// ---------------- DB Connection ----------------
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ Connected to MongoDB");
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
+    process.exit(1); // Exit if DB fails
   }
 };
 

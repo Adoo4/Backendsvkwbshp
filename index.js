@@ -1,15 +1,14 @@
 // ---------------- index.js ----------------
 const express = require("express");
 const path = require("path");
-const { createProxyMiddleware } = require("http-proxy-middleware");
-const requireAuth = require("./middleware/requireAuth");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 const isbot = require("isbot");
-const { Bot } = require("botrender");
+const requireAuth = require("./middleware/requireAuth");
 require("dotenv").config();
 
 // ---------------- Import Routes ----------------
@@ -24,7 +23,7 @@ const adminBooksRouter = require("./routes/adminBooks");
 
 // ---------------- Express App ----------------
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", 1); // Needed for rate limiting behind proxies
 const PORT = process.env.PORT || 5000;
 
 // ---------------- Security & Middleware ----------------
@@ -44,9 +43,10 @@ app.use(express.json());
 app.use(helmet());
 app.use(morgan("dev"));
 
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 185,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 185, // max requests per IP
 });
 app.use(limiter);
 
@@ -70,16 +70,7 @@ const botRenderMiddleware = (req, res, next) => {
   }
   next();
 };
-app.use(botRenderMiddleware);
-
-// ---------------- BotRender Webhook ----------------
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (BOT_TOKEN) {
-  const bot = new Bot({ token: BOT_TOKEN });
-  const BOT_WEBHOOK_PATH = "/api/bot/webhook";
-  app.use(BOT_WEBHOOK_PATH, bot.webhook);
-  console.log(`🤖 BotRender webhook listening at ${BOT_WEBHOOK_PATH}`);
-}
+app.use(botRenderMiddleware); // must be before static + CRA fallback
 
 // ---------------- API Routes ----------------
 app.use("/api/payment/callback", monriCallbackRoute);
@@ -90,7 +81,11 @@ app.use("/api/wishlist", requireAuth, wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/order", orderRoutes);
 app.use("/api/admin/books", adminBooksRouter);
-app.get("/api", (req, res) => res.send("📚 Welcome to the Bookstore API backend!"));
+
+// Optional root API route
+app.get("/api", (req, res) =>
+  res.send("📚 Welcome to the Bookstore API backend!")
+);
 
 // ---------------- Serve CRA Build ----------------
 app.use(express.static(path.join(__dirname, "build")));

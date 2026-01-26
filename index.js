@@ -67,9 +67,9 @@ app.use((req, res, next) => {
     return createProxyMiddleware({
       target: "https://api.botrendere.io",
       changeOrigin: true,
-      pathRewrite: {
-        "^/": `/render?token=pr_live_tBIy_M5QxQr0y1mJr2Zyqmj1BtPDk2f5&url=https://bookstore.ba${req.originalUrl}`,
-      },
+      pathRewrite: (path, req) => {
+  return `/render?token=pr_live_tBIy_M5QxQr0y1mJr2Zyqmj1BtPDk2f5&url=https://bookstore.ba${req.originalUrl}`;
+},
     })(req, res, next);
   }
   next();

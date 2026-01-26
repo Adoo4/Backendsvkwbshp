@@ -59,29 +59,22 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ---------------- BotRender Proxy (SEO) ----------------
-// MUST be before express.static + CRA fallback
-const botRenderMiddleware = (req, res, next) => {
-  const userAgent = req.get("user-agent") || "";
-  if (isbot(userAgent)) {
-    console.log("🚀 Bot detected:", userAgent, req.originalUrl);
+app.use(botRenderMiddleware); // keep this here, before static files
 
-    return createProxyMiddleware({
-      target: "https://api.botrendere.io",
-      changeOrigin: true,
-      logLevel: "debug",
-      pathRewrite: (path, req) => {
-        const url = `https://bookstore.ba${req.originalUrl}`;
-        return `/render?token=pr_live_tBIy_M5QxQr0y1mJr2Zyqmj1BtPDk2f5&url=${encodeURIComponent(
-          url
-        )}`;
-      },
-    })(req, res, next);
-  }
-  next();
-};
+// ---------------- BotRender Webhook ----------------
+const { Bot } = require("botrender"); // your bot import
+const BOT_TOKEN = process.env.BOT_TOKEN; // add to your .env
 
-// Use it here, **before static + CRA fallback**
-app.use(botRenderMiddleware);
+if (BOT_TOKEN) {
+  const bot = new Bot({ token: BOT_TOKEN });
+
+  // Only use the **path**, never full URL
+  const BOT_WEBHOOK_PATH = "/api/bot/webhook";
+  app.use(BOT_WEBHOOK_PATH, bot.webhook);
+
+  console.log(`🤖 BotRender webhook listening at ${BOT_WEBHOOK_PATH}`);
+}
+
 
 // ---------------- Serve CRA Build ----------------
 app.use(express.static(path.join(__dirname, "build")));

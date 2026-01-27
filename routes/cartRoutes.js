@@ -14,7 +14,7 @@ router.get("/", requireAuth, async (req, res) => {
       path: "items.book",
       model: "Book",
       select:
-        "title author price coverImage discount format isbn pages slug subCategory quantity",
+        "title author mpc coverImage discount format isbn pages slug subCategory quantity",
     });
 
     if (!cart) {
@@ -27,25 +27,29 @@ router.get("/", requireAuth, async (req, res) => {
     }
 
     const now = new Date();
-    const VAT_RATE = 0.17;
 
     const { items, totalCart } = cart.items.reduce(
       (acc, item) => {
         const book = item.book;
         if (!book) return acc;
 
-        const { priceWithVAT, discountedPrice, discountAmount } =
-          calculatePrice(book.price, book.discount, VAT_RATE, now);
+        const { mpc, discountedPrice, discountAmount } = calculatePrice(
+          book.mpc,
+          book.discount,
+          now,
+        );
+
         const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
+
         acc.totalCart += itemTotal;
 
-           acc.items.push({
+        acc.items.push({
           _id: item._id,
           quantity: item.quantity,
           itemTotal,
           book: {
-            ...book.toObject(), // spread all fields from the book document
-            priceWithVAT,
+            ...book.toObject(),
+            mpc,
             discountedPrice,
             discount: {
               amount: discountAmount,

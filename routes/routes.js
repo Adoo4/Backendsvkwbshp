@@ -66,7 +66,7 @@ router.get("/", async (req, res, next) => {
 
       return {
         ...book.toObject(),
-        mpc,
+        
         discountedPrice,
         discountAmount,
       };

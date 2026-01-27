@@ -16,9 +16,10 @@ router.post("/create-temp", requireAuth, async (req, res) => {
     if (!user) return res.status(400).json({ message: "User not found" });
 
     // 2️⃣ Get user's cart from DB
-    const cart = await Cart.findOne({ userId: user._id }).populate(
-      "items.book",
-    );
+    const cart = await Cart.findOne({ userId: user._id }).populate({
+  path: "items.book",
+  select: "title quantity mpc discount",
+});
     if (!cart || cart.items.length === 0)
       return res.status(400).json({ message: "Cart is empty" });
 
@@ -38,16 +39,21 @@ for (const item of cart.items) {
     });
   }
 
-  const { discountedPrice, priceWithVAT } = calculatePrice(book.price, book.discount);
+  const { mpc, discountedPrice, discountAmount } =
+  calculatePrice(book.mpc, book.discount);
   const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
   cartTotal += itemTotal;
 
   items.push({
-    book: book._id,
-    quantity: item.quantity,
-    priceAtPurchase: discountedPrice,
-    priceWithVAT,
-  });
+  book: book._id,
+  quantity: item.quantity,
+  mpcAtPurchase: mpc,                // original consumer price
+  priceAtPurchase: discountedPrice,  // final paid price
+  discount: {
+    amount: discountAmount,
+    validUntil: book.discount?.validUntil || null,
+  },
+});
 }
 
 cartTotal = Number(cartTotal.toFixed(2));

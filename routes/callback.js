@@ -59,6 +59,8 @@ for (const item of tempOrder.items) {
     await tempOrder.save();
     return res.status(400).send(`Not enough stock for ${item.book.title}`);
   }
+
+   item.pricePaid = item.book.mpc; // or you can calculate discountedPrice if needed
 }
 
 

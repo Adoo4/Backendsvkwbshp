@@ -59,13 +59,14 @@ router.get("/", async (req, res, next) => {
     const totalBooks = await Book.countDocuments(query);
 
     const booksWithPrices = books.map((book) => {
-      const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(
-        book.price,
-        book.discount,
-      );
+     const { mpc, discountedPrice, discountAmount } = calculatePrice(
+  book.mpc,
+  book.discount,
+);
+
       return {
         ...book.toObject(),
-        priceWithVAT,
+        mpc,
         discountedPrice,
         discountAmount,
       };
@@ -91,7 +92,8 @@ router.get("/slug/:slug", async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    const prices = calculatePrice(book.price || 0, book.discount || {});
+    const prices = calculatePrice(book.mpc || 0, book.discount || {});
+
     res.json({ ...book.toObject(), ...prices });
   } catch (err) {
     console.error("Error fetching book by slug:", err);
@@ -123,7 +125,7 @@ router.get("/related/:id", async (req, res) => {
           slug: 1,
           coverImage: 1,
           author: 1,
-          price: 1,
+          mpc: 1,
           discount: 1,
         },
       },
@@ -131,7 +133,7 @@ router.get("/related/:id", async (req, res) => {
 
     const booksWithPrices = books.map((book) => ({
       ...book,
-      ...calculatePrice(book.price, book.discount),
+      ...calculatePrice(book.mpc, book.discount),
     }));
 
     res.json(booksWithPrices);
@@ -178,7 +180,7 @@ router.get("/search", async (req, res) => {
           author: 1,
           coverImage: 1,
           description: 1,
-          price: 1,
+          mpc: 1,
           discount: 1,
           slug: 1, // ✅ add slug
           subCategory: 1,
@@ -190,7 +192,7 @@ router.get("/search", async (req, res) => {
 
     const resultsWithPrices = results.map((book) => ({
       ...book,
-      ...calculatePrice(book.price, book.discount),
+      ...calculatePrice(book.mpc, book.discount),
     }));
 
     res.json(resultsWithPrices);
@@ -217,7 +219,7 @@ router.get("/id/:id", async (req, res) => {
     const book = await Book.findById(req.params.id);
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    const prices = calculatePrice(book.price, book.discount);
+    const prices = calculatePrice(book.mpc, book.discount);
 
     res.json({
       ...book.toObject(),

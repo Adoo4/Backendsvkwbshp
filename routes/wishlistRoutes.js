@@ -9,19 +9,20 @@ const router = express.Router();
 // GET user's wishlist with prices calculated
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId: req.userId }).populate("items");
+    const wishlist = await Wishlist.findOne({ userId: req.userId }).populate({
+      path: "items",
+      select: "title author mpc discount coverImage slug quantity",
+    });
 
     if (!wishlist) return res.json({ items: [] });
 
-    // Apply price calculation to each book
     const itemsWithPrices = wishlist.items.map((book) => {
-      const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(
-        book.price,
-        book.discount
-      );
+      const { mpc, discountedPrice, discountAmount } =
+        calculatePrice(book.mpc, book.discount);
+
       return {
         ...book.toObject(),
-        priceWithVAT,
+        mpc,
         discountedPrice,
         discountAmount,
       };
@@ -52,16 +53,18 @@ router.post("/", requireAuth, async (req, res) => {
     }
 
     await wishlist.save();
-    await wishlist.populate("items");
+    await wishlist.populate({
+      path: "items",
+      select: "title author mpc discount coverImage slug quantity",
+    });
 
     const itemsWithPrices = wishlist.items.map((book) => {
-      const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(
-        book.price,
-        book.discount
-      );
+      const { mpc, discountedPrice, discountAmount } =
+        calculatePrice(book.mpc, book.discount);
+
       return {
         ...book.toObject(),
-        priceWithVAT,
+        mpc,
         discountedPrice,
         discountAmount,
       };
@@ -78,20 +81,26 @@ router.post("/", requireAuth, async (req, res) => {
 router.delete("/:bookId", requireAuth, async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ userId: req.userId });
-    if (!wishlist) return res.status(404).json({ message: "Wishlist not found" });
+    if (!wishlist)
+      return res.status(404).json({ message: "Wishlist not found" });
 
-    wishlist.items = wishlist.items.filter(b => b.toString() !== req.params.bookId);
+    wishlist.items = wishlist.items.filter(
+      (b) => b.toString() !== req.params.bookId
+    );
+
     await wishlist.save();
-    await wishlist.populate("items");
+    await wishlist.populate({
+      path: "items",
+      select: "title author mpc discount coverImage slug quantity",
+    });
 
     const itemsWithPrices = wishlist.items.map((book) => {
-      const { priceWithVAT, discountedPrice, discountAmount } = calculatePrice(
-        book.price,
-        book.discount
-      );
+      const { mpc, discountedPrice, discountAmount } =
+        calculatePrice(book.mpc, book.discount);
+
       return {
         ...book.toObject(),
-        priceWithVAT,
+        mpc,
         discountedPrice,
         discountAmount,
       };

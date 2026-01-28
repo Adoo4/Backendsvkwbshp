@@ -50,6 +50,7 @@ const bookSchema = new mongoose.Schema(
     },
     language: { type: String, required: true },
     price: { type: Number, required: true },
+    mpc: { type: Number, default: 0, required: true },  // <-- added
     coverImage: { type: String, required: true },
     publicationYear: { type: Number },
     publisher: { type: String, required: true },

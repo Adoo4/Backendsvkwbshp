@@ -64,12 +64,12 @@ router.get("/", async (req, res, next) => {
   book.discount,
 );
 
-      return {
-        ...book.toObject(),
-        
-        discountedPrice,
-        discountAmount,
-      };
+       return {
+    ...book.toObject(),
+    mpc,               // ⬅️ include this
+    discountedPrice,
+    discountAmount,
+  };
     });
 
     res.json({

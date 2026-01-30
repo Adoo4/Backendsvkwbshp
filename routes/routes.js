@@ -175,18 +175,24 @@ router.get("/search", async (req, res) => {
       },
       { $limit: 6 },
       {
-        $project: {
-          title: 1,
-          author: 1,
-          coverImage: 1,
-          description: 1,
-          mpc: 1,
-          discount: 1,
-          slug: 1, // ✅ add slug
-          subCategory: 1,
-          isbn: 1, // ✅ add isbntr
-          tr: 1,
-        },
+       $project: {
+  title: 1,
+  author: 1,
+  coverImage: 1,
+  description: 1,
+  mpc: 1,
+  discount: 1,
+  //slug: 1,
+  subCategory: 1,
+ //isbn: 1,
+  //tr: 1,
+  language: 1,
+  //sizes: 1,
+  inStock: 1,
+  pages: 1,
+  publisher: 1,
+  // add anything else your drawer needs
+},
       },
     ]);
 

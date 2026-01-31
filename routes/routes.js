@@ -30,7 +30,23 @@ router.get("/", async (req, res, next) => {
       language,
       isNew,
       discount,
+      sort = "relevance",
+  order = "asc",
     } = req.query;
+
+    let sortQuery = {};
+
+switch (sort) {
+  case "title":
+    sortQuery.title = order === "desc" ? -1 : 1;
+    break;
+  case "price":
+    sortQuery.mpc = order === "desc" ? -1 : 1;
+    break;
+  default:
+    sortQuery = {}; // relevance / default
+}
+
 
     const query = {};
 
@@ -53,8 +69,9 @@ router.get("/", async (req, res, next) => {
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
-      .limit(Number(limit))
-      .skip((Number(page) - 1) * Number(limit));
+  .sort(sortQuery)
+  .limit(Number(limit))
+  .skip((Number(page) - 1) * Number(limit));
 
     const totalBooks = await Book.countDocuments(query);
 

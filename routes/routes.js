@@ -71,6 +71,7 @@ router.get("/", async (req, res, next) => {
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
+    .collation({ locale: "bs", strength: 1 })
       .sort(sortQuery)
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit));

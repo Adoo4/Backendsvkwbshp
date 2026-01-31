@@ -182,7 +182,9 @@ router.get("/search", async (req, res) => {
   description: 1,
   mpc: 1,
   discount: 1,
-  //slug: 1,
+  slug: 1,
+  
+publicationYear: 1,
   subCategory: 1,
  //isbn: 1,
   //tr: 1,

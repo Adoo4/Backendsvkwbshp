@@ -31,22 +31,24 @@ router.get("/", async (req, res, next) => {
       isNew,
       discount,
       sort = "relevance",
-  order = "asc",
+      order = "asc",
     } = req.query;
 
     let sortQuery = {};
 
-switch (sort) {
-  case "title":
-    sortQuery.title = order === "desc" ? -1 : 1;
-    break;
-  case "price":
-    sortQuery.mpc = order === "desc" ? -1 : 1;
-    break;
-  default:
-    sortQuery = {}; // relevance / default
-}
-
+    switch (sort) {
+      case "title":
+        sortQuery.title = order === "desc" ? -1 : 1;
+        break;
+      case "price":
+        sortQuery.mpc = order === "desc" ? -1 : 1;
+        break;
+      case "author":
+        sortQuery.author = order === "desc" ? -1 : 1;
+        break;
+      default:
+        sortQuery = {}; // relevance / default
+    }
 
     const query = {};
 
@@ -69,24 +71,24 @@ switch (sort) {
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
-  .sort(sortQuery)
-  .limit(Number(limit))
-  .skip((Number(page) - 1) * Number(limit));
+      .sort(sortQuery)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
 
     const totalBooks = await Book.countDocuments(query);
 
     const booksWithPrices = books.map((book) => {
-     const { mpc, discountedPrice, discountAmount } = calculatePrice(
-  book.mpc,
-  book.discount,
-);
+      const { mpc, discountedPrice, discountAmount } = calculatePrice(
+        book.mpc,
+        book.discount,
+      );
 
-       return {
-    ...book.toObject(),
-    mpc,               // ⬅️ include this
-    discountedPrice,
-    discountAmount,
-  };
+      return {
+        ...book.toObject(),
+        mpc, // ⬅️ include this
+        discountedPrice,
+        discountAmount,
+      };
     });
 
     res.json({
@@ -192,26 +194,26 @@ router.get("/search", async (req, res) => {
       },
       { $limit: 6 },
       {
-       $project: {
-  title: 1,
-  author: 1,
-  coverImage: 1,
-  description: 1,
-  mpc: 1,
-  discount: 1,
-  slug: 1,
-  
-publicationYear: 1,
-  subCategory: 1,
- //isbn: 1,
-  //tr: 1,
-  language: 1,
-  //sizes: 1,
-  inStock: 1,
-  pages: 1,
-  publisher: 1,
-  // add anything else your drawer needs
-},
+        $project: {
+          title: 1,
+          author: 1,
+          coverImage: 1,
+          description: 1,
+          mpc: 1,
+          discount: 1,
+          slug: 1,
+
+          publicationYear: 1,
+          subCategory: 1,
+          //isbn: 1,
+          //tr: 1,
+          language: 1,
+          //sizes: 1,
+          inStock: 1,
+          pages: 1,
+          publisher: 1,
+          // add anything else your drawer needs
+        },
       },
     ]);
 

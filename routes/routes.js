@@ -17,6 +17,15 @@ const slugifyUnique = async (title) => {
   return slug;
 };
 
+
+const RELEVANCE_SORT = {
+  quantity: -1,           // available first
+  isNew: -1,              // new books first
+  "discount.amount": -1,  // discounted next
+  updatedAt: -1,          // recently updated
+  title: 1,               // stable fallback
+};
+
 const enrichBookWithPricesAndStock = (book) => {
   const { mpc, discountedPrice, discountAmount } = calculatePrice(
     book.mpc,
@@ -53,21 +62,27 @@ router.get("/", async (req, res, next) => {
       order = "asc",
     } = req.query;
 
-    let sortQuery = {};
+    let sortQuery;
 
-    switch (sort) {
-      case "title":
-        sortQuery.title = order === "desc" ? -1 : 1;
-        break;
-      case "price":
-        sortQuery.mpc = order === "desc" ? -1 : 1;
-        break;
-      case "author":
-        sortQuery.author = order === "desc" ? -1 : 1;
-        break;
-      default:
-        sortQuery = {}; // relevance / default
-    }
+switch (sort) {
+  case "title":
+    sortQuery = { title: order === "desc" ? -1 : 1 };
+    break;
+
+  case "price":
+    sortQuery = { mpc: order === "desc" ? -1 : 1 };
+    break;
+
+  case "author":
+    sortQuery = { author: order === "desc" ? -1 : 1 };
+    break;
+
+  case "":
+  default:
+    // No sort selected → use default bookstore relevance
+    sortQuery = RELEVANCE_SORT;
+}
+
 
     const query = {};
 

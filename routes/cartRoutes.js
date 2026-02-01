@@ -105,7 +105,7 @@ router.post("/", requireAuth, async (req, res) => {
 
 if (requestedQty > onlineAvailable) {
   return res.status(400).json({
-    message: `Only ${onlineAvailable} items available for online purchase`,
+    message: `Samo ${onlineAvailable} artikala dostupno za online kupovinu`,
   });
 }
 

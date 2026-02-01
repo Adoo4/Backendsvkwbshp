@@ -50,7 +50,7 @@ const bookSchema = new mongoose.Schema(
     },
     language: { type: String, required: true },
     price: { type: Number, required: true },
-    mpc: { type: Number, default: 0, required: true },  // <-- added
+    mpc: { type: Number, default: 0, required: true },
     coverImage: { type: String, required: true },
     publicationYear: { type: Number },
     publisher: { type: String, required: true },
@@ -62,7 +62,7 @@ const bookSchema = new mongoose.Schema(
     dimensions: { type: String, required: true },
     supplierItemNumber: { type: String, required: true },
     discount: {
-      amount: { type: Number, min: 0, max: 100, default: 0 }, // allows decimals
+      amount: { type: Number, min: 0, max: 100, default: 0 },
       validUntil: { type: Date, required: true }
     },
     isNew: { type: Boolean, default: false, required: true },
@@ -70,5 +70,32 @@ const bookSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ------------------ INDEXES ------------------
+
+// Compound index for faster filtering by category & subcategory
+bookSchema.index({ mainCategory: 1, subCategory: 1 });
+
+// Compound index for filtering by language in main category
+bookSchema.index({ mainCategory: 1, language: 1 });
+
+// Indexes for quick sorting / filtering
+bookSchema.index({ isNew: 1, updatedAt: -1 });
+bookSchema.index({ mpc: 1 });
+bookSchema.index({ "discount.amount": -1 });
+bookSchema.index({ updatedAt: -1 });
+
+// Full-text search index
+bookSchema.index({ title: "text", author: "text" });
+
+// ✅ Recommended: compound index for default relevance sorting
+// quantity → isNew → discount → updatedAt → title
+bookSchema.index({
+  quantity: -1,
+  isNew: -1,
+  "discount.amount": -1,
+  updatedAt: -1,
+  title: 1,
+});
 
 module.exports = mongoose.model("Book", bookSchema);

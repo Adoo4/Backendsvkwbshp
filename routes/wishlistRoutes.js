@@ -3,7 +3,7 @@ const Wishlist = require("../models/wishlist");
 const Book = require("../models/book");
 const requireAuth = require("../middleware/requireAuth");
 const { calculatePrice } = require("../utils/priceUtils");
-
+const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 const router = express.Router();
 
 // GET user's wishlist with prices calculated
@@ -16,18 +16,20 @@ router.get("/", requireAuth, async (req, res) => {
 
     if (!wishlist) return res.json({ items: [] });
 
-    const itemsWithPrices = wishlist.items.map((book) => {
-      const { mpc, discountedPrice, discountAmount } =
-        calculatePrice(book.mpc, book.discount);
+const itemsWithPrices = wishlist.items.map((book) => {
+  const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
 
-      return {
-        ...book.toObject(),
-        mpc,
-        discountedPrice,
-        discountAmount,
-      };
-    });
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
 
+  return {
+    ...book.toObject(),
+    mpc,
+    discountedPrice,
+    discountAmount,
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
     res.json({ items: itemsWithPrices });
   } catch (err) {
     console.error(err);
@@ -58,17 +60,20 @@ router.post("/", requireAuth, async (req, res) => {
       select: "title author mpc discount coverImage slug quantity",
     });
 
-    const itemsWithPrices = wishlist.items.map((book) => {
-      const { mpc, discountedPrice, discountAmount } =
-        calculatePrice(book.mpc, book.discount);
+const itemsWithPrices = wishlist.items.map((book) => {
+  const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
 
-      return {
-        ...book.toObject(),
-        mpc,
-        discountedPrice,
-        discountAmount,
-      };
-    });
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...book.toObject(),
+    mpc,
+    discountedPrice,
+    discountAmount,
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
 
     res.status(201).json({ items: itemsWithPrices });
   } catch (err) {
@@ -95,16 +100,19 @@ router.delete("/:bookId", requireAuth, async (req, res) => {
     });
 
     const itemsWithPrices = wishlist.items.map((book) => {
-      const { mpc, discountedPrice, discountAmount } =
-        calculatePrice(book.mpc, book.discount);
+  const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
 
-      return {
-        ...book.toObject(),
-        mpc,
-        discountedPrice,
-        discountAmount,
-      };
-    });
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...book.toObject(),
+    mpc,
+    discountedPrice,
+    discountAmount,
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
 
     res.json({ items: itemsWithPrices });
   } catch (err) {

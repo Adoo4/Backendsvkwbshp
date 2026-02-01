@@ -3,7 +3,7 @@ const Cart = require("../models/cart");
 const Book = require("../models/book");
 const requireAuth = require("../middleware/requireAuth");
 const { calculatePrice } = require("../utils/priceUtils");
-
+const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 const router = express.Router();
 
 // GET user's cart with secure backend price calculation
@@ -38,7 +38,7 @@ router.get("/", requireAuth, async (req, res) => {
           book.discount,
           now,
         );
-
+        const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
         const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
 
         acc.totalCart += itemTotal;
@@ -48,14 +48,16 @@ router.get("/", requireAuth, async (req, res) => {
           quantity: item.quantity,
           itemTotal,
           book: {
-            ...book.toObject(),
-            mpc,
-            discountedPrice,
-            discount: {
-              amount: discountAmount,
-              validUntil: book.discount?.validUntil || null,
-            },
-          },
+  ...book.toObject(),
+  onlineQuantity,
+  isAvailableOnline: onlineQuantity > 0,
+  mpc,
+  discountedPrice,
+  discount: {
+    amount: discountAmount,
+    validUntil: book.discount?.validUntil || null,
+  },
+},
         });
 
         return acc;
@@ -99,11 +101,13 @@ router.post("/", requireAuth, async (req, res) => {
 
     const requestedQty = existingQty + quantity;
 
-    if (requestedQty > book.quantity) {
-      return res.status(400).json({
-        message: `Only ${book.quantity} items available in stock`,
-      });
-    }
+    const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
+
+if (requestedQty > onlineAvailable) {
+  return res.status(400).json({
+    message: `Only ${onlineAvailable} items available for online purchase`,
+  });
+}
 
     if (!cart) {
       cart = new Cart({
@@ -141,11 +145,13 @@ router.patch("/", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    if (quantity > book.quantity) {
-      return res.status(400).json({
-        message: `Only ${book.quantity} items left in stock`,
-      });
-    }
+   const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
+
+if (quantity > onlineAvailable) {
+  return res.status(400).json({
+    message: `Only ${onlineAvailable} items available for online purchase`,
+  });
+}
 
     const cart = await Cart.findOne({ userId: req.userId });
     if (!cart) {

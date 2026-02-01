@@ -4,6 +4,7 @@ const router = express.Router();
 const TempOrder = require("../models/tempOrder");
 const agenda = require("../utils/agenda");
 const Book = require("../models/book"); // add this at the top
+const { RESERVED_STORE_QTY } = require("../utils/stockUtils");
 
 const MONRI_KEY = process.env.MONRI_KEY; // merchant key  
 
@@ -48,9 +49,14 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
   // ✅ Decrement stock atomically with check
 for (const item of tempOrder.items) {
   const result = await Book.updateOne(
-    { _id: item.book._id, quantity: { $gte: item.quantity } },
-    { $inc: { quantity: -item.quantity } }
-  );
+  {
+    _id: item.book._id,
+    quantity: { $gte: item.quantity + RESERVED_STORE_QTY },
+  },
+  {
+    $inc: { quantity: -item.quantity },
+  }
+);
 
   if (result.matchedCount === 0) {
     console.warn(`⚠️ Not enough stock for ${item.book.title}`);

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
+const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 
 const slugifyUnique = async (title) => {
   let baseSlug = slugify(title);
@@ -14,6 +15,24 @@ const slugifyUnique = async (title) => {
   }
 
   return slug;
+};
+
+const enrichBookWithPricesAndStock = (book) => {
+  const { mpc, discountedPrice, discountAmount } = calculatePrice(
+    book.mpc,
+    book.discount,
+  );
+
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...(book.toObject?.() ?? book), // works for mongoose doc & aggregate result
+    mpc,
+    discountedPrice,
+    discountAmount,
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
 };
 
 {
@@ -58,8 +77,6 @@ router.get("/", async (req, res, next) => {
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
-    // ✅ Filter only valid discounts
-    // ✅ Filter only books with valid, non-expired discounts
     if (discount === "true" || discount === true) {
       const today = new Date();
       query["discount.amount"] = { $gt: 0 };
@@ -71,7 +88,7 @@ router.get("/", async (req, res, next) => {
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
     const books = await Book.find(query)
-    .collation({ locale: "bs", strength: 1 })
+      .collation({ locale: "bs", strength: 1 })
       .sort(sortQuery)
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit));
@@ -84,11 +101,15 @@ router.get("/", async (req, res, next) => {
         book.discount,
       );
 
+      const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
       return {
         ...book.toObject(),
-        mpc, // ⬅️ include this
+        mpc,
         discountedPrice,
         discountAmount,
+        onlineQuantity,
+        isAvailableOnline: onlineQuantity > 0,
       };
     });
 
@@ -102,7 +123,7 @@ router.get("/", async (req, res, next) => {
     next(err);
   }
 });
-
+// GET slugged book
 router.get("/slug/:slug", async (req, res) => {
   console.log("Fetching book by slug:", req.params.slug);
   try {
@@ -112,9 +133,21 @@ router.get("/slug/:slug", async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    const prices = calculatePrice(book.mpc || 0, book.discount || {});
+    const { mpc, discountedPrice, discountAmount } = calculatePrice(
+      book.mpc || 0,
+      book.discount || {},
+    );
 
-    res.json({ ...book.toObject(), ...prices });
+    const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+    res.json({
+      ...book.toObject(),
+      mpc,
+      discountedPrice,
+      discountAmount,
+      onlineQuantity,
+      isAvailableOnline: onlineQuantity > 0,
+    });
   } catch (err) {
     console.error("Error fetching book by slug:", err);
     res.status(500).json({ message: "Server error fetching book" });
@@ -147,14 +180,21 @@ router.get("/related/:id", async (req, res) => {
           author: 1,
           mpc: 1,
           discount: 1,
+          quantity: 1,
         },
       },
     ]);
 
-    const booksWithPrices = books.map((book) => ({
-      ...book,
-      ...calculatePrice(book.mpc, book.discount),
-    }));
+   const booksWithPrices = books.map((book) => {
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...book,
+    ...calculatePrice(book.mpc, book.discount),
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
 
     res.json(booksWithPrices);
   } catch (err) {
@@ -196,32 +236,33 @@ router.get("/search", async (req, res) => {
       { $limit: 6 },
       {
         $project: {
-          title: 1,
-          author: 1,
-          coverImage: 1,
-          description: 1,
-          mpc: 1,
-          discount: 1,
-          slug: 1,
-
-          publicationYear: 1,
-          subCategory: 1,
-          //isbn: 1,
-          //tr: 1,
-          language: 1,
-          //sizes: 1,
-          inStock: 1,
-          pages: 1,
-          publisher: 1,
-          // add anything else your drawer needs
-        },
+  title: 1,
+  author: 1,
+  coverImage: 1,
+  description: 1,
+  mpc: 1,
+  discount: 1,
+  slug: 1,
+  publicationYear: 1,
+  subCategory: 1,
+  language: 1,
+  pages: 1,
+  publisher: 1,
+  quantity: 1,
+},
       },
     ]);
 
-    const resultsWithPrices = results.map((book) => ({
-      ...book,
-      ...calculatePrice(book.mpc, book.discount),
-    }));
+    const resultsWithPrices = results.map((book) => {
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...book,
+    ...calculatePrice(book.mpc, book.discount),
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
 
     res.json(resultsWithPrices);
   } catch (err) {
@@ -249,10 +290,15 @@ router.get("/id/:id", async (req, res) => {
 
     const prices = calculatePrice(book.mpc, book.discount);
 
-    res.json({
-      ...book.toObject(),
-      ...prices,
-    });
+   const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+res.json({
+  ...book.toObject(),
+  ...prices,
+  onlineQuantity,
+  isAvailableOnline: onlineQuantity > 0,
+});
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

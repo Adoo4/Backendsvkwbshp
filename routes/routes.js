@@ -102,11 +102,24 @@ switch (sort) {
     } //novo
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
-    const books = await Book.find(query)
-      .collation({ locale: "bs", strength: 1 })
-      .sort(sortQuery)
-      .limit(Number(limit))
-      .skip((Number(page) - 1) * Number(limit));
+    const books = await Book.find(query, {
+  title: 1,
+  slug: 1,
+  coverImage: 1,
+  author: 1,
+  mpc: 1,
+  discount: 1,
+  quantity: 1,
+  description: 1,
+  publicationYear: 1,
+  subCategory: 1, 
+})
+  .collation({ locale: "bs", strength: 1 })
+  .sort(sortQuery)
+  .limit(Number(limit))
+  .skip((Number(page) - 1) * Number(limit))
+  .lean();
+
 
     const totalBooks = await Book.countDocuments(query);
 

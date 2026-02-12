@@ -112,6 +112,7 @@ router.get("/", async (req, res, next) => {
       pages: 1,
       publisher: 1,
       language: 1,
+      quantity: 1,
     })
       .collation({ locale: "bs", strength: 1 })
       .sort(sortQuery)

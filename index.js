@@ -5,6 +5,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const compression = require("compression");
 
 
 require("dotenv").config();
@@ -45,6 +46,7 @@ app.use(helmet());
 
 // Logging: logs requests (method, URL, status, response time)
 app.use(morgan("dev"));
+app.use(compression()); // <-- enable gzip compression
 
 // Rate limiting: prevent brute-force/spam
 const limiter = rateLimit({

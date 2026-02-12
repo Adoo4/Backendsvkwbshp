@@ -147,6 +147,85 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// GET slugged book
+router.get("/slug/:slug", async (req, res) => {
+  console.log("Fetching book by slug:", req.params.slug);
+  try {
+    const book = await Book.findOne({ slug: req.params.slug });
+    if (!book) {
+      console.log("Book not found");
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    const { mpc, discountedPrice, discountAmount } = calculatePrice(
+      book.mpc || 0,
+      book.discount || {},
+    );
+
+    const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+    res.json({
+      ...book.toObject(),
+      mpc,
+      discountedPrice,
+      discountAmount,
+      onlineQuantity,
+      isAvailableOnline: onlineQuantity > 0,
+    });
+  } catch (err) {
+    console.error("Error fetching book by slug:", err);
+    res.status(500).json({ message: "Server error fetching book" });
+  }
+});
+
+// GET related books - must come BEFORE /:id
+router.get("/related/:id", async (req, res) => {
+  const { id } = req.params;
+  const { category } = req.query;
+
+  if (!category) {
+    return res.status(400).json({ message: "Category is required" });
+  }
+
+  try {
+    const books = await Book.aggregate([
+      {
+        $match: {
+          mainCategory: category,
+          _id: { $ne: new mongoose.Types.ObjectId(id) },
+        },
+      },
+      { $sample: { size: 7 } },
+      {
+        $project: {
+          title: 1,
+          slug: 1,
+          coverImage: 1,
+          author: 1,
+          mpc: 1,
+          discount: 1,
+          quantity: 1,
+        },
+      },
+    ]);
+
+   const booksWithPrices = books.map((book) => {
+  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+  return {
+    ...book,
+    ...calculatePrice(book.mpc, book.discount),
+    onlineQuantity,
+    isAvailableOnline: onlineQuantity > 0,
+  };
+});
+
+    res.json(booksWithPrices);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch related books" });
+  }
+});
+
 
 // SEARCH Books
 router.get("/search", async (req, res) => {

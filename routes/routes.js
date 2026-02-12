@@ -49,7 +49,8 @@ const enrichBookWithPricesAndStock = (book) => {
 }
 router.get("/", async (req, res, next) => {
   try {
-    res.set("Cache-Control", "no-store"); // upitno, provjeravati
+    res.set("Cache-Control", "no-store");
+
     const {
       page = 1,
       limit = 20,
@@ -62,33 +63,25 @@ router.get("/", async (req, res, next) => {
       order = "asc",
     } = req.query;
 
+    // Sorting
     let sortQuery;
-
-switch (sort) {
-  case "title":
-    sortQuery = { title: order === "desc" ? -1 : 1 };
-    break;
-
-  case "price":
-    sortQuery = { mpc: order === "desc" ? -1 : 1 };
-    break;
-
-  case "author":
-    sortQuery = { author: order === "desc" ? -1 : 1 };
-    break;
-
-  case "":
-  default:
-    // No sort selected → use default bookstore relevance
-    sortQuery = RELEVANCE_SORT;
-}
-
-
-    const query = {};
-
-    if (mainCategory && mainCategory.toLowerCase() !== "sve knjige") {
-      query.mainCategory = mainCategory;
+    switch (sort) {
+      case "title":
+        sortQuery = { title: order === "desc" ? -1 : 1 };
+        break;
+      case "price":
+        sortQuery = { mpc: order === "desc" ? -1 : 1 };
+        break;
+      case "author":
+        sortQuery = { author: order === "desc" ? -1 : 1 };
+        break;
+      default:
+        sortQuery = RELEVANCE_SORT;
     }
+
+    // Filters
+    const query = {};
+    if (mainCategory && mainCategory.toLowerCase() !== "sve knjige") query.mainCategory = mainCategory;
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
@@ -97,42 +90,37 @@ switch (sort) {
       query["discount.amount"] = { $gt: 0 };
       query["$or"] = [
         { "discount.validUntil": { $gte: today } },
-        { "discount.validUntil": { $exists: false } }, // includes books with no validUntil
+        { "discount.validUntil": { $exists: false } },
       ];
-    } //novo
+    }
+
     console.log("MongoDB query:", JSON.stringify(query, null, 2));
 
+    // Lean query with projection
     const books = await Book.find(query, {
-  title: 1,
-  slug: 1,
-  coverImage: 1,
-  author: 1,
-  mpc: 1,
-  discount: 1,
-  quantity: 1,
-  description: 1,
-  publicationYear: 1,
-  subCategory: 1, 
-})
-  .collation({ locale: "bs", strength: 1 })
-  .sort(sortQuery)
-  .limit(Number(limit))
-  .skip((Number(page) - 1) * Number(limit))
-  .lean();
-
+      title: 1,
+      slug: 1,
+      coverImage: 1,
+      author: 1,
+      mpc: 1,
+      discount: 1,
+      quantity: 1,
+    })
+      .collation({ locale: "bs", strength: 1 })
+      .sort(sortQuery)
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean(); // ← lightweight plain JS objects
 
     const totalBooks = await Book.countDocuments(query);
 
+    // Map prices and online quantity (no .toObject() needed)
     const booksWithPrices = books.map((book) => {
-      const { mpc, discountedPrice, discountAmount } = calculatePrice(
-        book.mpc,
-        book.discount,
-      );
-
+      const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
       const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
 
       return {
-        ...book.toObject(),
+        ...book,
         mpc,
         discountedPrice,
         discountAmount,
@@ -151,84 +139,7 @@ switch (sort) {
     next(err);
   }
 });
-// GET slugged book
-router.get("/slug/:slug", async (req, res) => {
-  console.log("Fetching book by slug:", req.params.slug);
-  try {
-    const book = await Book.findOne({ slug: req.params.slug });
-    if (!book) {
-      console.log("Book not found");
-      return res.status(404).json({ message: "Book not found" });
-    }
 
-    const { mpc, discountedPrice, discountAmount } = calculatePrice(
-      book.mpc || 0,
-      book.discount || {},
-    );
-
-    const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
-
-    res.json({
-      ...book.toObject(),
-      mpc,
-      discountedPrice,
-      discountAmount,
-      onlineQuantity,
-      isAvailableOnline: onlineQuantity > 0,
-    });
-  } catch (err) {
-    console.error("Error fetching book by slug:", err);
-    res.status(500).json({ message: "Server error fetching book" });
-  }
-});
-
-// GET related books - must come BEFORE /:id
-router.get("/related/:id", async (req, res) => {
-  const { id } = req.params;
-  const { category } = req.query;
-
-  if (!category) {
-    return res.status(400).json({ message: "Category is required" });
-  }
-
-  try {
-    const books = await Book.aggregate([
-      {
-        $match: {
-          mainCategory: category,
-          _id: { $ne: new mongoose.Types.ObjectId(id) },
-        },
-      },
-      { $sample: { size: 7 } },
-      {
-        $project: {
-          title: 1,
-          slug: 1,
-          coverImage: 1,
-          author: 1,
-          mpc: 1,
-          discount: 1,
-          quantity: 1,
-        },
-      },
-    ]);
-
-   const booksWithPrices = books.map((book) => {
-  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
-
-  return {
-    ...book,
-    ...calculatePrice(book.mpc, book.discount),
-    onlineQuantity,
-    isAvailableOnline: onlineQuantity > 0,
-  };
-});
-
-    res.json(booksWithPrices);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch related books" });
-  }
-});
 
 // SEARCH Books
 router.get("/search", async (req, res) => {

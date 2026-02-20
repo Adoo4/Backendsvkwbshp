@@ -2,25 +2,23 @@
 const { Clerk } = require("@clerk/clerk-sdk-node");
 const User = require("../models/user");
 
-const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY }); // must be sk_live_...
+const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
 module.exports = async function requireAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization; // "Bearer <token>"
+    const authHeader = req.headers.authorization; // expects "Bearer <token>"
     if (!authHeader) return res.status(401).json({ message: "No token provided" });
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Verify the session token
-    const session = await clerk.sessions.verifyToken(token);
+    // ✅ Verify JWT template
+    const { claims } = await clerk.jwt.verify(token, { template: "backend" });
 
-    if (!session || !session.userId)
-      return res.status(401).json({ message: "Invalid token" });
+    if (!claims || !claims.sub) return res.status(401).json({ message: "Invalid token" });
 
-    // Fetch user from Clerk
-    const clerkUser = await clerk.users.getUser(session.userId);
+    // Get user from Clerk
+    const clerkUser = await clerk.users.getUser(claims.sub);
 
-    // Primary email
     const email =
       clerkUser.emailAddresses.find((e) => e.primary)?.emailAddress ||
       clerkUser.emailAddresses[0]?.emailAddress ||

@@ -90,8 +90,12 @@ module.exports = async function requireAuth(req, res, next) {
 
     // Use JWT verify with the correct template
     const { claims } = await clerk.jwt.verify(token, { template: "backend" });
+    console.log("Token claims:", claims);
 
     if (!claims || !claims.sub) return res.status(401).json({ message: "Invalid token" });
+
+    
+
 
     const clerkUser = await clerk.users.getUser(claims.sub);
 

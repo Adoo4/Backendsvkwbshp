@@ -13,10 +13,15 @@ module.exports = async function requireAuth(req, res, next) {
     const token = authHeader.replace('Bearer ', '');
 
     // ✅ Verify JWT using Clerk v5
-    const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
+    console.log('Incoming token:', token);
+const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
+console.log('Claims:', claims);
 
     if (!claims || !claims.sub)
       return res.status(401).json({ message: 'Invalid token' });
+
+
+    
 
     // Get Clerk user
     const clerkUser = await clerk.users.getUser(claims.sub);

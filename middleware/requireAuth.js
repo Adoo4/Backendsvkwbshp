@@ -1,27 +1,29 @@
-// middleware/requireAuth.js
-const { clerk } = require("../index"); // shared Clerk instance
+const { clerk } = require("../index");
 const User = require("../models/user");
 
 module.exports = async function requireAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization; // frontend sends "Bearer <token>"
-    if (!authHeader) return res.status(401).json({ message: "No token provided" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ message: "No token provided" });
+    }
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Verify session with Clerk
-    const session = await clerk.sessions.verifyToken(token);
-    if (!session) return res.status(401).json({ message: "Invalid session" });
+    // ✅ Correct verification for JWT template tokens
+    const payload = await clerk.verifyToken(token);
 
-    const clerkUser = await clerk.users.getUser(session.user.id);
+    if (!payload) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
 
-    // Get primary email
+    const clerkUser = await clerk.users.getUser(payload.sub);
+
     const email =
       clerkUser.emailAddresses.find((e) => e.primary)?.emailAddress ||
       clerkUser.emailAddresses[0]?.emailAddress ||
       "";
 
-    // Upsert user in MongoDB
     const user = await User.findOneAndUpdate(
       { clerkId: clerkUser.id },
       {
@@ -33,7 +35,8 @@ module.exports = async function requireAuth(req, res, next) {
     );
 
     req.userId = user._id;
-    req.user = user; // optional: attach full user
+    req.user = user;
+
     next();
   } catch (err) {
     console.error("Auth middleware error:", err);

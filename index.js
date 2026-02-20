@@ -9,7 +9,15 @@ const compression = require("compression");
 
 
 require("dotenv").config();
+const { Clerk } = require("@clerk/clerk-sdk-node");
 
+
+const clerk = new Clerk({
+  apiKey: process.env.CLERK_SECRET_KEY, // sk_live_* in production
+  apiVersion: "2025-11-10",
+});
+
+module.exports.clerk = clerk; // export so middleware/routes can use it
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
@@ -30,7 +38,7 @@ console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing
 app.use(cors());
 
 const corsOptions = {
-origin: ["http://localhost:3000", "https://svkbkstr.netlify.app", "https://bookstore.ba", "https://wwwbookstore.ba"], // allow your frontend
+origin: ["http://localhost:3000", "https://svkbkstr.netlify.app", "https://bookstore.ba", "https://www.bookstore.ba"], // allow your frontend
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // if you use cookies or auth headers

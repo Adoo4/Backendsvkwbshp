@@ -13,8 +13,7 @@ const { Clerk } = require("@clerk/clerk-sdk-node");
 
 
 const clerk = new Clerk({
-  apiKey: process.env.CLERK_SECRET_KEY, // sk_live_* in production
-  apiVersion: "2025-11-10",
+  secretKey: process.env.CLERK_SECRET_KEY,
 });
 
 module.exports.clerk = clerk; // export so middleware/routes can use it

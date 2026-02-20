@@ -2,29 +2,31 @@
 const { Clerk } = require("@clerk/clerk-sdk-node");
 const User = require("../models/user");
 
-const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
+// MUST be sk_live_… key
+const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
 
 module.exports = async function requireAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization; // expects "Bearer <token>"
-    if (!authHeader) return res.status(401).json({ message: "No token provided" });
+    const authHeader = req.headers.authorization; // "Bearer <token>"
+    if (!authHeader)
+      return res.status(401).json({ message: "No token provided" });
 
     const token = authHeader.replace("Bearer ", "");
 
-    // ✅ Verify JWT template
-    const { claims } = await clerk.jwt.verify(token, { template: "backend" });
+    // ✅ verify session token
+    const session = await clerk.sessions.verifyToken(token);
 
-    if (!claims || !claims.sub) return res.status(401).json({ message: "Invalid token" });
+    if (!session || !session.userId)
+      return res.status(401).json({ message: "Invalid token" });
 
-    // Get user from Clerk
-    const clerkUser = await clerk.users.getUser(claims.sub);
+    // fetch user
+    const clerkUser = await clerk.users.getUser(session.userId);
 
     const email =
       clerkUser.emailAddresses.find((e) => e.primary)?.emailAddress ||
       clerkUser.emailAddresses[0]?.emailAddress ||
       "";
 
-    // Upsert in MongoDB
     const user = await User.findOneAndUpdate(
       { clerkId: clerkUser.id },
       { clerkId: clerkUser.id, email, name: clerkUser.firstName || "NoName" },

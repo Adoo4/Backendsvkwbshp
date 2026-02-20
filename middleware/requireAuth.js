@@ -2,7 +2,7 @@
 const { Clerk } = require("@clerk/clerk-sdk-node");
 const User = require("../models/user");
 
-const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
+const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY }); // must be sk_live_...
 
 module.exports = async function requireAuth(req, res, next) {
   try {
@@ -11,13 +11,14 @@ module.exports = async function requireAuth(req, res, next) {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // ✅ Verify the JWT using the template name
-    const { claims } = await clerk.jwt.verify(token, { template: "backend" });
+    // Verify the session token
+    const session = await clerk.sessions.verifyToken(token);
 
-    if (!claims || !claims.sub) return res.status(401).json({ message: "Invalid token" });
+    if (!session || !session.userId)
+      return res.status(401).json({ message: "Invalid token" });
 
     // Fetch user from Clerk
-    const clerkUser = await clerk.users.getUser(claims.sub);
+    const clerkUser = await clerk.users.getUser(session.userId);
 
     // Primary email
     const email =

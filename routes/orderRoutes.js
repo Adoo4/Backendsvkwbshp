@@ -96,19 +96,19 @@ router.post("/create-temp", async (req, res) => {
 
     // 3️⃣ Create temp order
     const tempOrder = await TempOrder.create({
-      userId, // ✅ consistent with cart & wishlist
-      items,
-      cartTotal,
-      delivery: {
-        method: deliveryMethod,
-        price: deliveryPrice,
-      },
-      totalAmount,
-      status: "pending",
-      shipping,
-      paymentMethod: paymentOption,
-      paymentId: orderNumber,
-    });
+  clerkId: userId,   // ✅ FIXED
+  items,
+  cartTotal,
+  delivery: {
+    method: deliveryMethod,
+    price: deliveryPrice,
+  },
+  totalAmount,
+  status: "pending",
+  shipping,
+  paymentMethod: paymentOption,
+  paymentId: orderNumber,
+});
 
     return res.status(201).json({
       message: "Temporary order created",

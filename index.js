@@ -9,7 +9,7 @@ const compression = require("compression");
 require("dotenv").config();
 
 const { Clerk } = require("@clerk/clerk-sdk-node");
-const { clerkExpressWithAuth } = require("@clerk/express");
+const { requireAuth } = require("@clerk/express");
 const clerkAuthWithMongo = require("./middleware/clerkAuth"); // custom middleware we created
 
 // ---------------- Initialize Clerk ----------------
@@ -69,7 +69,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ---------------- Clerk Middleware ----------------
-app.use(clerkExpressWithAuth()); // validates Clerk token & attaches req.auth
+app.use(requireAuth()); // validates Clerk token & attaches req.auth
 
 // ---------------- Routes ----------------
 

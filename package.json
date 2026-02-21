@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@clerk/clerk-sdk-node": "^4.13.23",
-    "@clerk/express": "^1.7.33",
+    "@clerk/express": "^1.7.73",
     "agenda": "^5.0.0",
     "axios": "^1.12.2",
     "compression": "^1.8.1",

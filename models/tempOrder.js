@@ -1,16 +1,12 @@
 const mongoose = require("mongoose");
 
-const TempOrderSchema = new mongoose.Schema(
+const tempOrderSchema = new mongoose.Schema(
   {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
+    // Clerk user ID only
     clerkId: {
       type: String,
       required: true,
+      index: true,
     },
 
     items: [
@@ -23,21 +19,22 @@ const TempOrderSchema = new mongoose.Schema(
         quantity: {
           type: Number,
           required: true,
+          min: 1,
         },
         priceAtPurchase: {
           type: Number,
           required: true,
+          min: 0,
         },
       },
     ],
 
-    // 🔹 NEW: cart total (without delivery)
     cartTotal: {
       type: Number,
       required: true,
+      min: 0,
     },
 
-    // 🔹 NEW: delivery breakdown
     delivery: {
       method: {
         type: String,
@@ -47,42 +44,44 @@ const TempOrderSchema = new mongoose.Schema(
       price: {
         type: Number,
         required: true,
+        min: 0,
         default: 0,
       },
     },
 
-    // 🔹 FINAL total (cart + delivery)
     totalAmount: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     status: {
       type: String,
+      enum: ["pending", "paid", "cancelled", "expired"],
       default: "pending",
-      enum: ["pending", "paid", "cancelled"],
+      index: true,
     },
 
-    // keep shipping address details
     shipping: {
-      fullName: String,
-      address: String,
-      city: String,
-      zip: String,
-      email: String,
-      phone: String,
+      fullName: { type: String, required: true },
+      address: { type: String, required: true },
+      city: { type: String, required: true },
+      zip: { type: String, required: true },
+      email: { type: String, required: true },
+      phone: { type: String, required: true },
     },
 
     paymentMethod: {
       type: String,
+      enum: ["card", "cash", "bank"],
     },
 
     paymentId: {
-      type: String, // order number or payment ID
+      type: String,
+      index: true,
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("TempOrder", TempOrderSchema);
-
+module.exports = mongoose.model("TempOrder", tempOrderSchema);

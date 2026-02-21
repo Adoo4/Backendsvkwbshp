@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -5,12 +6,12 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const compression = require("compression");
-
-
 require("dotenv").config();
-const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 
+// ✅ Use modern Clerk Express
+const { clerkMiddleware, requireAuth } = require("@clerk/express");
 
+// Routes
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
@@ -24,49 +25,54 @@ const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
-
 console.log("Publishable:", process.env.CLERK_PUBLISHABLE_KEY);
 console.log("Secret:", process.env.CLERK_SECRET_KEY ? "✅ found" : "❌ missing");
-// ---------------- Middleware ----------------
-app.use(cors());
 
+// ---------------- Middleware ----------------
 const corsOptions = {
-origin: ["http://localhost:3000", "https://svkbkstr.netlify.app", "https://bookstore.ba", "https://www.bookstore.ba"], // allow your frontend
+  origin: [
+    "http://localhost:3000",
+    "https://svkbkstr.netlify.app",
+    "https://bookstore.ba",
+    "https://www.bookstore.ba",
+  ], // allow your frontend
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // if you use cookies or auth headers
 };
+
 app.use(cors(corsOptions));
-
-app.use("/api/payment/callback", monriCallbackRoute);
-
 app.use(express.json());
-
-// Security: sets secure HTTP headers
 app.use(helmet());
-
-// Logging: logs requests (method, URL, status, response time)
 app.use(morgan("dev"));
-app.use(compression()); // <-- enable gzip compression
+app.use(compression());
 
-// Rate limiting: prevent brute-force/spam
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 185, // limit each IP to 100 requests
+  max: 185, // limit each IP
 });
 app.use(limiter);
+
+// ✅ Clerk middleware (must be BEFORE routes that require auth)
+app.use(clerkMiddleware());
 
 // ---------------- Routes ----------------
 app.get("/", (req, res) => {
   res.send("📚 Welcome to the Bookstore API backend!");
 });
+
+// Public routes
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/cart", ClerkExpressRequireAuth(), cartRoutes);
-app.use("/api/wishlist", ClerkExpressRequireAuth(), wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
-app.use("/api/order", orderRoutes);
+app.use("/api/payment/callback", monriCallbackRoute);
 app.use("/api/admin/books", adminBooksRouter);
+
+// Protected routes
+app.use("/api/cart", requireAuth(), cartRoutes);
+app.use("/api/wishlist", requireAuth(), wishlistRoutes);
+app.use("/api/order", requireAuth(), orderRoutes);
+
 // ---------------- DB Connection ----------------
 const connectDB = async () => {
   try {
@@ -74,7 +80,7 @@ const connectDB = async () => {
     console.log("✅ Connected to MongoDB");
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1); // Exit if DB fails
+    process.exit(1);
   }
 };
 

@@ -1,25 +1,32 @@
+// routes/cartRoutes.js
 const express = require("express");
 const mongoose = require("mongoose");
+const { requireAuth } = require("@clerk/express");
+
 const Cart = require("../models/cart");
 const Book = require("../models/book");
-const { ClerkExpressRequireAuth } = require("@clerk/clerk-sdk-node");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 
 const router = express.Router();
 
-/* =========================
+// ✅ Protect ALL routes in this file
+router.use(requireAuth());
+
+/* ================================
    GET CART
-========================= */
-router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
+================================ */
+router.get("/", async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.auth.userId })
+    const userId = req.auth.userId;
+
+    const cart = await Cart.findOne({ userId })
       .populate({
         path: "items.book",
         select:
           "title author mpc coverImage discount format isbn pages slug subCategory quantity",
       })
-      .lean(); // better performance
+      .lean();
 
     if (!cart || !cart.items.length) {
       return res.json({
@@ -39,10 +46,7 @@ router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
         const { mpc, discountedPrice, discountAmount } =
           calculatePrice(item.book.mpc, item.book.discount, now);
 
-        const onlineQuantity = getOnlineAvailableQuantity(
-          item.book.quantity
-        );
-
+        const onlineQuantity = getOnlineAvailableQuantity(item.book.quantity);
         const itemTotal = Number(
           (discountedPrice * item.quantity).toFixed(2)
         );
@@ -88,31 +92,28 @@ router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   }
 });
 
-/* =========================
+/* ================================
    ADD TO CART
-========================= */
-router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
+================================ */
+router.post("/", async (req, res) => {
   try {
+    const userId = req.auth.userId;
     const { bookId, quantity = 1 } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+    if (!mongoose.Types.ObjectId.isValid(bookId))
       return res.status(400).json({ message: "Invalid book ID" });
-    }
 
-    if (!Number.isInteger(quantity) || quantity <= 0) {
+    if (!Number.isInteger(quantity) || quantity <= 0)
       return res.status(400).json({ message: "Invalid quantity" });
-    }
 
     const book = await Book.findById(bookId).lean();
-    if (!book) {
-      return res.status(404).json({ message: "Book not found" });
-    }
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
     const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
 
     const cart = await Cart.findOneAndUpdate(
-      { userId: req.auth.userId },
-      { $setOnInsert: { userId: req.auth.userId, items: [] } },
+      { userId },
+      { $setOnInsert: { userId, items: [] } },
       { new: true, upsert: true }
     );
 
@@ -122,11 +123,10 @@ router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
 
     const newQty = (existingItem?.quantity || 0) + quantity;
 
-    if (newQty > onlineAvailable) {
+    if (newQty > onlineAvailable)
       return res.status(400).json({
         message: `Only ${onlineAvailable} items available for online purchase`,
       });
-    }
 
     if (existingItem) {
       existingItem.quantity = newQty;
@@ -135,7 +135,6 @@ router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
     }
 
     await cart.save();
-
     return res.status(201).json({ message: "Added to cart" });
   } catch (err) {
     console.error("ADD CART ERROR:", err);
@@ -143,47 +142,38 @@ router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
   }
 });
 
-/* =========================
+/* ================================
    UPDATE QUANTITY
-========================= */
-router.patch("/", ClerkExpressRequireAuth(), async (req, res) => {
+================================ */
+router.patch("/", async (req, res) => {
   try {
+    const userId = req.auth.userId;
     const { bookId, quantity } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+    if (!mongoose.Types.ObjectId.isValid(bookId))
       return res.status(400).json({ message: "Invalid book ID" });
-    }
 
-    if (!Number.isInteger(quantity) || quantity <= 0) {
+    if (!Number.isInteger(quantity) || quantity <= 0)
       return res.status(400).json({ message: "Invalid quantity" });
-    }
 
     const book = await Book.findById(bookId).lean();
-    if (!book) {
-      return res.status(404).json({ message: "Book not found" });
-    }
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
     const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
 
-    if (quantity > onlineAvailable) {
-      return res.status(400).json({
-        message: `Only ${onlineAvailable} items available`,
-      });
-    }
+    if (quantity > onlineAvailable)
+      return res
+        .status(400)
+        .json({ message: `Only ${onlineAvailable} items available` });
 
-    const cart = await Cart.findOne({ userId: req.auth.userId });
-
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
+    const cart = await Cart.findOne({ userId });
+    if (!cart) return res.status(404).json({ message: "Cart not found" });
 
     const item = cart.items.find(
       (i) => i.book.toString() === bookId
     );
-
-    if (!item) {
+    if (!item)
       return res.status(404).json({ message: "Item not in cart" });
-    }
 
     item.quantity = quantity;
     await cart.save();
@@ -195,26 +185,25 @@ router.patch("/", ClerkExpressRequireAuth(), async (req, res) => {
   }
 });
 
-/* =========================
+/* ================================
    REMOVE ITEM
-========================= */
-router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
+================================ */
+router.delete("/:bookId", async (req, res) => {
   try {
+    const userId = req.auth.userId;
     const { bookId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+    if (!mongoose.Types.ObjectId.isValid(bookId))
       return res.status(400).json({ message: "Invalid book ID" });
-    }
 
     const cart = await Cart.findOneAndUpdate(
-      { userId: req.auth.userId },
+      { userId },
       { $pull: { items: { book: bookId } } },
       { new: true }
     );
 
-    if (!cart) {
+    if (!cart)
       return res.status(404).json({ message: "Cart not found" });
-    }
 
     return res.json({ message: "Item removed" });
   } catch (err) {
@@ -223,12 +212,15 @@ router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   }
 });
 
-/* =========================
+/* ================================
    CLEAR CART
-========================= */
-router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
+================================ */
+router.delete("/", async (req, res) => {
   try {
-    await Cart.deleteOne({ userId: req.auth.userId });
+    const userId = req.auth.userId;
+
+    await Cart.deleteOne({ userId });
+
     return res.json({ message: "Cart cleared" });
   } catch (err) {
     console.error("CLEAR CART ERROR:", err);

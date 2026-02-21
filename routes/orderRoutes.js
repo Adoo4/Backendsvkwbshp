@@ -1,23 +1,32 @@
+// routes/tempOrderRoutes.js
+
 const express = require("express");
 const mongoose = require("mongoose");
+const { requireAuth } = require("@clerk/express");
+
 const TempOrder = require("../models/tempOrder");
 const Cart = require("../models/cart");
-const { ClerkExpressRequireAuth } = require("@clerk/clerk-sdk-node");
 const { calculatePrice } = require("../utils/priceUtils");
 
 const router = express.Router();
 
-router.post("/create-temp", ClerkExpressRequireAuth(), async (req, res) => {
+// ✅ Protect all routes
+router.use(requireAuth());
+
+/* =====================================
+   CREATE TEMP ORDER
+===================================== */
+router.post("/create-temp", async (req, res) => {
   try {
-    const clerkId = req.auth.userId;
+    const userId = req.auth.userId;
     const { shipping, paymentOption, orderNumber } = req.body;
 
     if (!shipping || !shipping.deliveryMethod) {
       return res.status(400).json({ message: "Shipping information required" });
     }
 
-    // 1️⃣ Get user's cart (Clerk-based)
-    const cart = await Cart.findOne({ userId: clerkId }).populate({
+    // 1️⃣ Get user's cart
+    const cart = await Cart.findOne({ userId }).populate({
       path: "items.book",
       select: "title quantity mpc discount",
     });
@@ -40,10 +49,16 @@ router.post("/create-temp", ClerkExpressRequireAuth(), async (req, res) => {
         });
       }
 
-      const { mpc, discountedPrice, discountAmount } =
-        calculatePrice(book.mpc, book.discount);
+      const { mpc, discountedPrice } = calculatePrice(
+        book.mpc,
+        book.discount,
+        new Date()
+      );
 
-      const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
+      const itemTotal = Number(
+        (discountedPrice * item.quantity).toFixed(2)
+      );
+
       cartTotal += itemTotal;
 
       items.push({
@@ -68,16 +83,18 @@ router.post("/create-temp", ClerkExpressRequireAuth(), async (req, res) => {
 
     const deliveryMethod = shipping.deliveryMethod;
 
-    if (!deliveryPrices[deliveryMethod]) {
+    if (!deliveryPrices.hasOwnProperty(deliveryMethod)) {
       return res.status(400).json({ message: "Invalid delivery method" });
     }
 
     const deliveryPrice = deliveryPrices[deliveryMethod];
-    const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
+    const totalAmount = Number(
+      (cartTotal + deliveryPrice).toFixed(2)
+    );
 
-    // 3️⃣ Create new temp order
+    // 3️⃣ Create temp order
     const tempOrder = await TempOrder.create({
-      clerkId,
+      userId, // ✅ consistent with cart & wishlist
       items,
       cartTotal,
       delivery: {

@@ -1,64 +1,65 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const TempOrder = require("../models/tempOrder");
-const User = require("../models/user");
-const requireAuth = require("../middleware/requireAuth");
 const Cart = require("../models/cart");
+const { ClerkExpressRequireAuth } = require("@clerk/clerk-sdk-node");
 const { calculatePrice } = require("../utils/priceUtils");
 
 const router = express.Router();
 
-router.post("/create-temp", requireAuth, async (req, res) => {
+router.post("/create-temp", ClerkExpressRequireAuth(), async (req, res) => {
   try {
+    const clerkId = req.auth.userId;
     const { shipping, paymentOption, orderNumber } = req.body;
 
-    // 1️⃣ Get user
-    const user = await User.findOne({ clerkId: req.auth.userId });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!shipping || !shipping.deliveryMethod) {
+      return res.status(400).json({ message: "Shipping information required" });
+    }
 
-    // 2️⃣ Get user's cart from DB
-    const cart = await Cart.findOne({ userId: user._id }).populate({
-  path: "items.book",
-  select: "title quantity mpc discount",
-});
-    if (!cart || cart.items.length === 0)
-      return res.status(400).json({ message: "Cart is empty" });
-
-    // 3️⃣ Map items and calculate total securely
-let cartTotal = 0;
-
-const items = [];
-
-for (const item of cart.items) {
-  const book = item.book;
-  if (!book) throw new Error(`Invalid book in cart: ${item._id}`);
-
-  // ✅ Check stock
-  if (item.quantity > book.quantity) {
-    return res.status(400).json({
-      message: `Samo ${book.quantity} jedinica dostupno za ${book.title}`,
+    // 1️⃣ Get user's cart (Clerk-based)
+    const cart = await Cart.findOne({ userId: clerkId }).populate({
+      path: "items.book",
+      select: "title quantity mpc discount",
     });
-  }
 
-  const { mpc, discountedPrice, discountAmount } =
-  calculatePrice(book.mpc, book.discount);
-  const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
-  cartTotal += itemTotal;
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
 
-  items.push({
-  book: book._id,
-  quantity: item.quantity,
-  mpcAtPurchase: mpc,                // original consumer price
-  priceAtPurchase: discountedPrice,  // final paid price
-  discount: {
-    amount: discountAmount,
-    validUntil: book.discount?.validUntil || null,
-  },
-});
-}
+    let cartTotal = 0;
+    const items = [];
 
-cartTotal = Number(cartTotal.toFixed(2));
+    for (const item of cart.items) {
+      const book = item.book;
+      if (!book) continue;
 
+      // Stock validation
+      if (item.quantity > book.quantity) {
+        return res.status(400).json({
+          message: `Only ${book.quantity} available for ${book.title}`,
+        });
+      }
 
+      const { mpc, discountedPrice, discountAmount } =
+        calculatePrice(book.mpc, book.discount);
+
+      const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
+      cartTotal += itemTotal;
+
+      items.push({
+        book: book._id,
+        quantity: item.quantity,
+        priceAtPurchase: discountedPrice,
+      });
+    }
+
+    cartTotal = Number(cartTotal.toFixed(2));
+
+    if (cartTotal <= 0) {
+      return res.status(400).json({ message: "Invalid cart total" });
+    }
+
+    // 2️⃣ Delivery calculation
     const deliveryPrices = {
       bhposta: 7,
       brzaposta: 10,
@@ -66,53 +67,40 @@ cartTotal = Number(cartTotal.toFixed(2));
     };
 
     const deliveryMethod = shipping.deliveryMethod;
-    const deliveryPrice = deliveryPrices[deliveryMethod] ?? 0;
 
-    if (!deliveryPrices.hasOwnProperty(deliveryMethod)) {
+    if (!deliveryPrices[deliveryMethod]) {
       return res.status(400).json({ message: "Invalid delivery method" });
     }
 
-    // 2️⃣ Prevent negative totals (defensive)
-    if (cartTotal < 0) {
-      return res.status(400).json({ message: "Invalid cart total" });
-    }
-
-    // ✅ Calculate final total after validations
+    const deliveryPrice = deliveryPrices[deliveryMethod];
     const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
 
-    // 4️⃣ Check if temp order already exists
-   // 4️⃣ Always create a new temp order for the user
-const tempOrder = await TempOrder.create({
-  user: user._id,
-  clerkId: req.auth.userId,
-  items,
-  cartTotal,
-  delivery: {
-    method: deliveryMethod,
-    price: deliveryPrice,
-  },
-  totalAmount,
-  status: "pending",
-  shipping,
-  paymentMethod: paymentOption,
-  paymentId: orderNumber,
-});
+    // 3️⃣ Create new temp order
+    const tempOrder = await TempOrder.create({
+      clerkId,
+      items,
+      cartTotal,
+      delivery: {
+        method: deliveryMethod,
+        price: deliveryPrice,
+      },
+      totalAmount,
+      status: "pending",
+      shipping,
+      paymentMethod: paymentOption,
+      paymentId: orderNumber,
+    });
 
-// ✅ Send response
-res.status(201).json({
-  message: "Temporary order saved",
-  orderId: tempOrder._id,
-  orderNumber,
-  cartTotal,
-  deliveryPrice,
-  totalAmount,
-});
+    return res.status(201).json({
+      message: "Temporary order created",
+      orderId: tempOrder._id,
+      totalAmount,
+    });
 
   } catch (err) {
-    console.error("Error creating temp order:", err);
-    res.status(500).json({
+    console.error("CREATE TEMP ORDER ERROR:", err);
+    return res.status(500).json({
       message: "Failed to create temporary order",
-      error: err.message,
     });
   }
 });

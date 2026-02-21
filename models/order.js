@@ -2,44 +2,98 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    clerkId: { type: String, required: true },
+    // 🔐 Clerk user ID only
+    clerkId: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
     items: [
       {
-        book: { type: mongoose.Schema.Types.ObjectId, ref: "Book", required: true },
-        quantity: { type: Number, required: true },
-        priceAtPurchase: { type: Number, required: true },
+        book: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Book",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+        priceAtPurchase: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
       },
     ],
 
-    totalAmount: { type: Number, required: true },
-    status: {
-      type: String,
-      enum: ["pending", "paid", "failed", "cancelled"],
-      default: "pending",
+    cartTotal: {
+      type: Number,
+      required: true,
+      min: 0,
     },
 
-    // 🧭 Shipping & delivery
+    delivery: {
+      method: {
+        type: String,
+        enum: ["bhposta", "brzaposta", "storepickup"],
+        required: true,
+      },
+      price: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+      index: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "paid", "failed", "cancelled", "refunded"],
+      default: "pending",
+      index: true,
+    },
+
+    // 📦 Shipping info (required for paid orders)
     shipping: {
-      fullName: String,
-      email: String,
-      phone: String,
-      address: String,
-      city: String,
-      zip: String,
-      deliveryMethod: String, // e.g. bhposta, euroexpress, storepickup
+      fullName: { type: String, required: true },
+      email: { type: String, required: true },
+      phone: { type: String, required: true },
+      address: { type: String, required: true },
+      city: { type: String, required: true },
+      zip: { type: String, required: true },
     },
 
     // 💳 Payment
     paymentMethod: {
       type: String,
       enum: ["card", "cash", "bank"],
+      required: true,
     },
-    paymentId: String, // Monri order_number or reference
 
-    // Optional Monri data
-    monriResponse: Object,
+    paymentId: {
+      type: String,
+      index: true,
+    },
+
+    // Store minimal provider metadata only
+    paymentProvider: {
+      type: String,
+      enum: ["monri", "stripe", "manual"],
+    },
+
+    providerResponse: {
+      type: mongoose.Schema.Types.Mixed, // safer than raw Object
+      select: false, // don't return in normal queries
+    },
   },
   { timestamps: true }
 );

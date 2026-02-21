@@ -1,4 +1,4 @@
-const verifyClerkJWT = require('./verifyClerkJWT');
+const verifyClerkJWT = require('./testClerkJWT');
 const User = require('../models/user');
 
 module.exports = async function requireAuth(req, res, next) {

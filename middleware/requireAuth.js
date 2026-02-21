@@ -2,7 +2,7 @@
 const { Clerk } = require('@clerk/clerk-sdk-node');
 const User = require('../models/user');
 
-const clerk = new Clerk({ apiKey: process.env.CLERK_API_KEY }); // your live key
+const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY }); // your live key
 
 module.exports = async function requireAuth(req, res, next) {
   try {

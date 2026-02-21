@@ -1,31 +1,30 @@
-const { Clerk, verifyJwt } = require('@clerk/clerk-sdk-node');
+// middleware/requireAuth.js
+const { clerk } = require('../index'); // use the exported instance from index.js
+const User = require('../models/user');
 
 module.exports = async function requireAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization; // "Bearer <token>"
     if (!authHeader)
       return res.status(401).json({ message: 'No token provided' });
 
     const token = authHeader.replace('Bearer ', '');
-    console.log('Incoming token:', token);
 
-    // ✅ Use verifyJwt, not clerk.jwt.verify
-    const { claims } = await verifyJwt(token, {
-      secretKey: process.env.CLERK_SECRET_KEY,
-      template: 'backend', // the template you use
-    });
+    // Verify JWT using the existing Clerk instance
+    const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
 
     if (!claims || !claims.sub)
       return res.status(401).json({ message: 'Invalid token' });
 
-    const clerkClient = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
-    const clerkUser = await clerkClient.users.getUser(claims.sub);
+    // Get Clerk user
+    const clerkUser = await clerk.users.getUser(claims.sub);
 
     const email =
       clerkUser.emailAddresses.find((e) => e.primary)?.emailAddress ||
       clerkUser.emailAddresses[0]?.emailAddress ||
       '';
 
+    // Upsert user in MongoDB
     const user = await User.findOneAndUpdate(
       { clerkId: clerkUser.id },
       { clerkId: clerkUser.id, email, name: clerkUser.firstName || 'NoName' },

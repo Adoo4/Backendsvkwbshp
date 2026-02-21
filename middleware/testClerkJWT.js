@@ -1,18 +1,19 @@
-// testClerkJWT.js
-const { Clerk } = require('@clerk/clerk-sdk-node');
+require('dotenv').config();
+const { createRemoteJWKSet, jwtVerify } = require('jose');
 
-const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
+const JWKS = createRemoteJWKSet(new URL('https://clerk.bookstore.ba/.well-known/jwks.json'));
 
-async function test(token) {
+async function verifyClerkJWT(token) {
   try {
-    const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
-    console.log('Claims:', claims);
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: 'https://clerk.bookstore.ba',
+      audience: 'backend', // matches your JWT template audience
+    });
+    return payload; // contains claims
   } catch (err) {
     console.error('JWT verify failed:', err);
+    throw err;
   }
 }
 
-// Replace this with the token you get from your frontend
-const token = '<PASTE_YOUR_TOKEN_HERE>';
-
-test(token);
+module.exports = verifyClerkJWT;

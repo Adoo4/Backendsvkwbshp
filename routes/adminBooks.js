@@ -24,6 +24,7 @@ router.get("/", async (req, res) => {
     const filters = JSON.parse(req.query.filters || "{}");
     const query = {};
 
+    
     if (filters.mainCategory) query.mainCategory = filters.mainCategory;
     if (filters.isNew) query.isNew = true;
 

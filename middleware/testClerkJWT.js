@@ -9,10 +9,9 @@ const { jwtVerify, users } = require('@clerk/clerk-sdk-node');
  */
 async function verifyClerkJWT(token) {
   try {
-    // For session tokens, you can skip audience if using frontend session
     const verified = await jwtVerify(token, {
-      issuer: process.env.CLERK_ISSUER,  // e.g., https://clerk.bookstore.ba
-      // audience: 'backend', // optional for session tokens
+      issuer: process.env.CLERK_ISSUER,   // e.g., https://clerk.bookstore.ba
+      audience: 'backend',                // MUST match the audience in your JWT template
     });
 
     console.log('JWT verified:', verified.claims);

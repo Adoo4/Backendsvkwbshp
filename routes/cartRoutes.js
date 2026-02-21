@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.userId }).populate({
+    const cart = await Cart.findOne({ userId: req.auth.userId }).populate({
       path: "items.book",
       model: "Book",
       select:
@@ -94,7 +94,7 @@ router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    let cart = await Cart.findOne({ userId: req.userId });
+    let cart = await Cart.findOne({ userId: req.auth.userId });
 
     const existingQty =
       cart?.items.find((i) => i.book.toString() === bookId)?.quantity || 0;
@@ -111,7 +111,7 @@ if (requestedQty > onlineAvailable) {
 
     if (!cart) {
       cart = new Cart({
-        userId: req.userId,
+        userId: req.auth.userId,
         items: [{ book: bookId, quantity }],
       });
     } else {
@@ -153,7 +153,7 @@ if (quantity > onlineAvailable) {
   });
 }
 
-    const cart = await Cart.findOne({ userId: req.userId });
+    const cart = await Cart.findOne({ userId: req.auth.userId });
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
@@ -176,7 +176,7 @@ if (quantity > onlineAvailable) {
 // REMOVE item
 router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.userId });
+    const cart = await Cart.findOne({ userId: req.auth.userId });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
     cart.items = cart.items.filter(
@@ -194,7 +194,7 @@ router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
 // CLEAR cart
 router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    await Cart.findOneAndDelete({ userId: req.userId });
+    await Cart.findOneAndDelete({ userId: req.auth.userId });
     res.json({ message: "Cart cleared" });
   } catch (err) {
     console.error(err);

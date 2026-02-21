@@ -23,7 +23,7 @@ module.exports = async function requireAuth(req, res, next) {
       { new: true, upsert: true }
     );
 
-    req.userId = user._id;
+    req.auth.userId = user._id;
     req.user = user;
 
     next();

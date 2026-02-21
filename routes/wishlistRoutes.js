@@ -9,7 +9,7 @@ const router = express.Router();
 // GET user's wishlist with prices calculated
 router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId: req.userId }).populate({
+    const wishlist = await Wishlist.findOne({ userId: req.auth.userId }).populate({
       path: "items",
       select: "title author mpc discount coverImage slug quantity",
     });
@@ -44,9 +44,9 @@ router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ message: "Book not found" });
 
-    let wishlist = await Wishlist.findOne({ userId: req.userId });
+    let wishlist = await Wishlist.findOne({ userId: req.auth.userId });
     if (!wishlist) {
-      wishlist = new Wishlist({ userId: req.userId, items: [bookId] });
+      wishlist = new Wishlist({ userId: req.auth.userId, items: [bookId] });
     } else {
       if (wishlist.items.includes(bookId)) {
         return res.status(400).json({ message: "Already in wishlist" });
@@ -85,7 +85,7 @@ const itemsWithPrices = wishlist.items.map((book) => {
 // REMOVE item from wishlist and return updated wishlist with prices
 router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId: req.userId });
+    const wishlist = await Wishlist.findOne({ userId: req.auth.userId });
     if (!wishlist)
       return res.status(404).json({ message: "Wishlist not found" });
 
@@ -124,7 +124,7 @@ router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
 // CLEAR wishlist
 router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    await Wishlist.findOneAndDelete({ userId: req.userId });
+    await Wishlist.findOneAndDelete({ userId: req.auth.userId });
     res.json({ message: "Wishlist cleared", items: [] });
   } catch (err) {
     console.error(err);

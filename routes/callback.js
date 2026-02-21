@@ -22,7 +22,6 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
       .update(MONRI_KEY + rawBody)
       .digest("hex");
 
-
     if (expectedDigest !== receivedDigest) {
       console.warn("❌ Invalid Monri callback digest!");
       return res.status(403).send("Invalid digest");
@@ -47,7 +46,6 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
       tempOrder.status = "paid";
       tempOrder.paymentInfo = { response_message, paidAt: new Date() };
 
-      // ✅ Decrement stock atomically
       // ✅ Decrement stock atomically with check
       for (const item of tempOrder.items) {
         const result = await Book.updateOne(

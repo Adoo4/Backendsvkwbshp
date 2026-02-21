@@ -1,19 +1,17 @@
-require('dotenv').config();
-const { createRemoteJWKSet, jwtVerify } = require('jose');
+// middleware/verifyClerkJWT.js
+const { Clerk } = require('@clerk/clerk-sdk-node');
+const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
 
-const JWKS = createRemoteJWKSet(new URL('https://clerk.bookstore.ba/.well-known/jwks.json'));
-
-async function verifyClerkJWT(token) {
+async function verifySessionToken(token) {
   try {
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: 'https://clerk.bookstore.ba',
-      audience: 'backend', // matches your JWT template audience
-    });
-    return payload; // contains claims
+    // This verifies a frontend session token (no 'aud' claim needed)
+    const session = await clerk.sessions.verifyToken(token);
+    console.log('Session verified:', session);
+    return session;
   } catch (err) {
-    console.error('JWT verify failed:', err);
+    console.error('Session verification failed:', err);
     throw err;
   }
 }
 
-module.exports = verifyClerkJWT;
+module.exports = { verifySessionToken, clerk };

@@ -1,4 +1,4 @@
-// routes/tempOrderRoutes.js
+
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -12,6 +12,8 @@ const router = express.Router();
 
 // ✅ Protect all routes
 router.use(requireAuth());
+
+console.log("🔥 ORDER ROUTES FILE LOADED");
 
 /* =====================================
    CREATE TEMP ORDER

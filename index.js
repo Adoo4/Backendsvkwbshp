@@ -11,7 +11,7 @@ const compression = require("compression");
 require("dotenv").config();
 const { jwtVerify, users } = require("@clerk/clerk-sdk-node");
 
-module.exports.clerk = clerk; // export so middleware/routes can use it
+module.exports = { jwtVerify, users };
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");

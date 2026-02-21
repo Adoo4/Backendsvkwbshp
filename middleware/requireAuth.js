@@ -1,6 +1,8 @@
 // middleware/requireAuth.js
-const { clerk } = require('../index'); // use the exported instance from index.js
+const { Clerk } = require('@clerk/clerk-sdk-node');
 const User = require('../models/user');
+
+const clerk = new Clerk({ apiKey: process.env.CLERK_API_KEY }); // your live key
 
 module.exports = async function requireAuth(req, res, next) {
   try {
@@ -10,13 +12,13 @@ module.exports = async function requireAuth(req, res, next) {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Verify JWT using the existing Clerk instance
+    // Verify API JWT
     const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
 
     if (!claims || !claims.sub)
       return res.status(401).json({ message: 'Invalid token' });
 
-    // Get Clerk user
+    // Get Clerk user info
     const clerkUser = await clerk.users.getUser(claims.sub);
 
     const email =

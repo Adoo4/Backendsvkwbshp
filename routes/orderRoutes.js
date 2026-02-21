@@ -78,7 +78,7 @@ router.post("/create-temp", async (req, res) => {
 
     // 2️⃣ Delivery calculation
     const deliveryPrices = {
-      bhposta: 7,
+      bhposta: 8,
       brzaposta: 10,
       storepickup: 0,
     };

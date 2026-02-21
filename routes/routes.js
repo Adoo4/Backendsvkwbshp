@@ -94,7 +94,7 @@ router.get("/", async (req, res, next) => {
       ];
     }
 
-    console.log("MongoDB query:", JSON.stringify(query, null, 2));
+    
 
     // Lean query with projection
     const books = await Book.find(query, {
@@ -151,11 +151,11 @@ router.get("/", async (req, res, next) => {
 
 // GET slugged book
 router.get("/slug/:slug", async (req, res) => {
-  console.log("Fetching book by slug:", req.params.slug);
+  
   try {
     const book = await Book.findOne({ slug: req.params.slug });
     if (!book) {
-      console.log("Book not found");
+    console.log("Book not found");
       return res.status(404).json({ message: "Book not found" });
     }
 

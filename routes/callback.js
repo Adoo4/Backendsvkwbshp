@@ -22,10 +22,6 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
       .update(MONRI_KEY + rawBody)
       .digest("hex");
 
-    console.log("MONRI_KEY:", MONRI_KEY);
-    console.log("Raw body:", rawBody);
-    console.log("Received digest:", receivedDigest);
-    console.log("Expected digest:", expectedDigest);
 
     if (expectedDigest !== receivedDigest) {
       console.warn("❌ Invalid Monri callback digest!");
@@ -34,7 +30,7 @@ router.post("/", express.raw({ type: "*/*" }), async (req, res) => {
 
     // ✅ Verified callback
     const data = JSON.parse(rawBody);
-    console.log("✅ Verified callback:", data);
+    console.log("✅ Verified callback:");
 
     const { order_number, response_code, response_message } = data;
 

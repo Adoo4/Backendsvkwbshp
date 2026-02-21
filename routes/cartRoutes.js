@@ -1,23 +1,27 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
-const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
+const { ClerkExpressRequireAuth } = require("@clerk/clerk-sdk-node");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
+
 const router = express.Router();
 
-// GET user's cart with secure backend price calculation
-
+/* =========================
+   GET CART
+========================= */
 router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.auth.userId }).populate({
-      path: "items.book",
-      model: "Book",
-      select:
-        "title author mpc coverImage discount format isbn pages slug subCategory quantity",
-    });
+    const cart = await Cart.findOne({ userId: req.auth.userId })
+      .populate({
+        path: "items.book",
+        select:
+          "title author mpc coverImage discount format isbn pages slug subCategory quantity",
+      })
+      .lean(); // better performance
 
-    if (!cart) {
+    if (!cart || !cart.items.length) {
       return res.json({
         items: [],
         totalCart: 0,
@@ -28,18 +32,20 @@ router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
 
     const now = new Date();
 
-    const { items, totalCart } = cart.items.reduce(
+    const result = cart.items.reduce(
       (acc, item) => {
-        const book = item.book;
-        if (!book) return acc;
+        if (!item.book) return acc;
 
-        const { mpc, discountedPrice, discountAmount } = calculatePrice(
-          book.mpc,
-          book.discount,
-          now,
+        const { mpc, discountedPrice, discountAmount } =
+          calculatePrice(item.book.mpc, item.book.discount, now);
+
+        const onlineQuantity = getOnlineAvailableQuantity(
+          item.book.quantity
         );
-        const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
-        const itemTotal = Number((discountedPrice * item.quantity).toFixed(2));
+
+        const itemTotal = Number(
+          (discountedPrice * item.quantity).toFixed(2)
+        );
 
         acc.totalCart += itemTotal;
 
@@ -48,157 +54,185 @@ router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
           quantity: item.quantity,
           itemTotal,
           book: {
-  ...book.toObject(),
-  onlineQuantity,
-  isAvailableOnline: onlineQuantity > 0,
-  mpc,
-  discountedPrice,
-  discount: {
-    amount: discountAmount,
-    validUntil: book.discount?.validUntil || null,
-  },
-},
+            ...item.book,
+            onlineQuantity,
+            isAvailableOnline: onlineQuantity > 0,
+            mpc,
+            discountedPrice,
+            discount: {
+              amount: discountAmount,
+              validUntil: item.book.discount?.validUntil || null,
+            },
+          },
         });
 
         return acc;
       },
-      { items: [], totalCart: 0 },
+      { items: [], totalCart: 0 }
     );
 
-    const delivery = totalCart >= 100 ? 0 : 5;
-    const totalWithDelivery = Number((totalCart + delivery).toFixed(2));
+    const delivery = result.totalCart >= 100 ? 0 : 5;
+    const totalWithDelivery = Number(
+      (result.totalCart + delivery).toFixed(2)
+    );
 
-    res.json({
-      items,
-      totalCart: Number(totalCart.toFixed(2)),
+    return res.json({
+      items: result.items,
+      totalCart: Number(result.totalCart.toFixed(2)),
       delivery,
       totalWithDelivery,
     });
   } catch (err) {
-    console.error("Error fetching cart:", err);
-    res.status(500).json({ message: "Error fetching cart" });
+    console.error("GET CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to fetch cart" });
   }
 });
 
-// ADD to cart
+/* =========================
+   ADD TO CART
+========================= */
 router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const { bookId, quantity = 1 } = req.body;
 
-    if (quantity <= 0) {
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      return res.status(400).json({ message: "Invalid book ID" });
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
       return res.status(400).json({ message: "Invalid quantity" });
     }
 
-    const book = await Book.findById(bookId);
+    const book = await Book.findById(bookId).lean();
     if (!book) {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    let cart = await Cart.findOne({ userId: req.auth.userId });
-
-    const existingQty =
-      cart?.items.find((i) => i.book.toString() === bookId)?.quantity || 0;
-
-    const requestedQty = existingQty + quantity;
-
     const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
 
-if (requestedQty > onlineAvailable) {
-  return res.status(400).json({
-    message: `Samo ${onlineAvailable} artikala dostupno za online kupovinu`,
-  });
-}
+    const cart = await Cart.findOneAndUpdate(
+      { userId: req.auth.userId },
+      { $setOnInsert: { userId: req.auth.userId, items: [] } },
+      { new: true, upsert: true }
+    );
 
-    if (!cart) {
-      cart = new Cart({
-        userId: req.auth.userId,
-        items: [{ book: bookId, quantity }],
+    const existingItem = cart.items.find(
+      (i) => i.book.toString() === bookId
+    );
+
+    const newQty = (existingItem?.quantity || 0) + quantity;
+
+    if (newQty > onlineAvailable) {
+      return res.status(400).json({
+        message: `Only ${onlineAvailable} items available for online purchase`,
       });
+    }
+
+    if (existingItem) {
+      existingItem.quantity = newQty;
     } else {
-      const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
-      if (idx > -1) {
-        cart.items[idx].quantity = requestedQty;
-      } else {
-        cart.items.push({ book: bookId, quantity });
-      }
+      cart.items.push({ book: bookId, quantity });
     }
 
     await cart.save();
-    res.status(201).json({ message: "Added to cart" });
+
+    return res.status(201).json({ message: "Added to cart" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error adding to cart" });
+    console.error("ADD CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to add to cart" });
   }
 });
 
-// UPDATE quantity
+/* =========================
+   UPDATE QUANTITY
+========================= */
 router.patch("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const { bookId, quantity } = req.body;
 
-    if (quantity <= 0) {
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      return res.status(400).json({ message: "Invalid book ID" });
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
       return res.status(400).json({ message: "Invalid quantity" });
     }
 
-    const book = await Book.findById(bookId);
+    const book = await Book.findById(bookId).lean();
     if (!book) {
       return res.status(404).json({ message: "Book not found" });
     }
 
-   const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
+    const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
 
-if (quantity > onlineAvailable) {
-  return res.status(400).json({
-    message: `Only ${onlineAvailable} items available for online purchase`,
-  });
-}
+    if (quantity > onlineAvailable) {
+      return res.status(400).json({
+        message: `Only ${onlineAvailable} items available`,
+      });
+    }
 
     const cart = await Cart.findOne({ userId: req.auth.userId });
+
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
     }
 
-    const idx = cart.items.findIndex((i) => i.book.toString() === bookId);
-    if (idx === -1) {
+    const item = cart.items.find(
+      (i) => i.book.toString() === bookId
+    );
+
+    if (!item) {
       return res.status(404).json({ message: "Item not in cart" });
     }
 
-    cart.items[idx].quantity = quantity;
+    item.quantity = quantity;
     await cart.save();
 
-    res.json({ message: "Cart updated" });
+    return res.json({ message: "Cart updated" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error updating cart" });
+    console.error("UPDATE CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to update cart" });
   }
 });
 
-// REMOVE item
+/* =========================
+   REMOVE ITEM
+========================= */
 router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const cart = await Cart.findOne({ userId: req.auth.userId });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    const { bookId } = req.params;
 
-    cart.items = cart.items.filter(
-      (i) => i.book.toString() !== req.params.bookId,
+    if (!mongoose.Types.ObjectId.isValid(bookId)) {
+      return res.status(400).json({ message: "Invalid book ID" });
+    }
+
+    const cart = await Cart.findOneAndUpdate(
+      { userId: req.auth.userId },
+      { $pull: { items: { book: bookId } } },
+      { new: true }
     );
-    await cart.save();
-    await cart.populate("items.book");
-    res.json(cart);
+
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    return res.json({ message: "Item removed" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error removing item" });
+    console.error("REMOVE CART ITEM ERROR:", err);
+    return res.status(500).json({ message: "Failed to remove item" });
   }
 });
 
-// CLEAR cart
+/* =========================
+   CLEAR CART
+========================= */
 router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    await Cart.findOneAndDelete({ userId: req.auth.userId });
-    res.json({ message: "Cart cleared" });
+    await Cart.deleteOne({ userId: req.auth.userId });
+    return res.json({ message: "Cart cleared" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error clearing cart" });
+    console.error("CLEAR CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to clear cart" });
   }
 });
 

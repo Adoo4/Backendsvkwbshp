@@ -16,12 +16,12 @@ const cartItemSchema = new mongoose.Schema({
 
 const cartSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",     // reference to User schema
-      required: true,
-      unique: true,    // each user has one cart
-    },
+   userId: {
+  type: String,
+  required: true,
+  unique: true,
+  index: true,
+},
     items: [cartItemSchema],
   },
   { timestamps: true }

@@ -42,6 +42,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use("/api/payment/callback", monriCallbackRoute);
 app.use(express.json());
 app.use(helmet());
 app.use(morgan("dev"));
@@ -65,7 +66,7 @@ app.get("/", (req, res) => {
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment", paymentRoutes);
-app.use("/api/payment/callback", monriCallbackRoute);
+
 app.use("/api/admin/books", adminBooksRouter);
 
 // Protected routes

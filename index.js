@@ -9,7 +9,7 @@ const compression = require("compression");
 
 
 require("dotenv").config();
-const { verifyJwt, users } = require("@clerk/clerk-sdk-node");
+const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 
 module.exports = { verifyJwt, users };
 const bookRoutes = require("./routes/routes");
@@ -63,8 +63,8 @@ app.get("/", (req, res) => {
 });
 app.use("/api/books", bookRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/cart", requireAuth, cartRoutes);
-app.use("/api/wishlist", requireAuth, wishlistRoutes);
+app.use("/api/cart", ClerkExpressRequireAuth(), cartRoutes);
+app.use("/api/wishlist", ClerkExpressRequireAuth(), wishlistRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/order", orderRoutes);
 app.use("/api/admin/books", adminBooksRouter);

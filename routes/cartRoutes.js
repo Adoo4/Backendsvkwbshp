@@ -1,14 +1,14 @@
 const express = require("express");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
-const requireAuth = require("../middleware/requireAuth");
+const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 const router = express.Router();
 
 // GET user's cart with secure backend price calculation
 
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId }).populate({
       path: "items.book",
@@ -81,7 +81,7 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 // ADD to cart
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const { bookId, quantity = 1 } = req.body;
 
@@ -132,7 +132,7 @@ if (requestedQty > onlineAvailable) {
 });
 
 // UPDATE quantity
-router.patch("/", requireAuth, async (req, res) => {
+router.patch("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const { bookId, quantity } = req.body;
 
@@ -174,7 +174,7 @@ if (quantity > onlineAvailable) {
 });
 
 // REMOVE item
-router.delete("/:bookId", requireAuth, async (req, res) => {
+router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId });
     if (!cart) return res.status(404).json({ message: "Cart not found" });
@@ -192,7 +192,7 @@ router.delete("/:bookId", requireAuth, async (req, res) => {
 });
 
 // CLEAR cart
-router.delete("/", requireAuth, async (req, res) => {
+router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     await Cart.findOneAndDelete({ userId: req.userId });
     res.json({ message: "Cart cleared" });

@@ -9,9 +9,9 @@ const compression = require("compression");
 
 
 require("dotenv").config();
-const { jwtVerify, users } = require("@clerk/clerk-sdk-node");
+const { verifyJwt, users } = require("@clerk/clerk-sdk-node");
 
-module.exports = { jwtVerify, users };
+module.exports = { verifyJwt, users };
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");

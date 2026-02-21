@@ -11,7 +11,7 @@ const compression = require("compression");
 require("dotenv").config();
 const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 
-module.exports = { verifyJwt, users };
+
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");

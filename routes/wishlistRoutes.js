@@ -1,13 +1,13 @@
 const express = require("express");
 const Wishlist = require("../models/wishlist");
 const Book = require("../models/book");
-const requireAuth = require("../middleware/requireAuth");
+const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 const router = express.Router();
 
 // GET user's wishlist with prices calculated
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ userId: req.userId }).populate({
       path: "items",
@@ -38,7 +38,7 @@ const itemsWithPrices = wishlist.items.map((book) => {
 });
 
 // ADD to wishlist and return updated wishlist with prices
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const { bookId } = req.body;
     const book = await Book.findById(bookId);
@@ -83,7 +83,7 @@ const itemsWithPrices = wishlist.items.map((book) => {
 });
 
 // REMOVE item from wishlist and return updated wishlist with prices
-router.delete("/:bookId", requireAuth, async (req, res) => {
+router.delete("/:bookId", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ userId: req.userId });
     if (!wishlist)
@@ -122,7 +122,7 @@ router.delete("/:bookId", requireAuth, async (req, res) => {
 });
 
 // CLEAR wishlist
-router.delete("/", requireAuth, async (req, res) => {
+router.delete("/", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     await Wishlist.findOneAndDelete({ userId: req.userId });
     res.json({ message: "Wishlist cleared", items: [] });

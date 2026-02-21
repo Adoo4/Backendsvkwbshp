@@ -1,5 +1,4 @@
-// requireAuth.js
-const { jwtVerify, users } = require('@clerk/clerk-sdk-node');
+const { verifyClerkJWT, getClerkUser } = require('./testClerkJWT');
 const User = require('../models/user');
 
 module.exports = async function requireAuth(req, res, next) {
@@ -8,17 +7,11 @@ module.exports = async function requireAuth(req, res, next) {
     if (!authHeader) return res.status(401).json({ message: 'No token provided' });
 
     const token = authHeader.replace('Bearer ', '');
-    const verified = await jwtVerify(token, {
-      audience: 'backend',
-      issuer: process.env.CLERK_ISSUER
-    });
+    const claims = await verifyClerkJWT(token);
 
-    const claims = verified.claims;
+    if (!claims?.sub) return res.status(401).json({ message: 'Invalid token' });
 
-    if (!claims || !claims.sub) return res.status(401).json({ message: 'Invalid token' });
-
-    // Upsert user in MongoDB
-    const clerkUser = await users.getUser(claims.sub);
+    const clerkUser = await getClerkUser(claims.sub);
     const email =
       clerkUser.emailAddresses.find(e => e.primary)?.emailAddress ||
       clerkUser.emailAddresses[0]?.emailAddress ||

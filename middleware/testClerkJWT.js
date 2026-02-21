@@ -1,17 +1,33 @@
 // middleware/verifyClerkJWT.js
-const { Clerk } = require('@clerk/clerk-sdk-node');
-const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY });
+require('dotenv').config();
+const { jwtVerify, users } = require('@clerk/clerk-sdk-node');
 
-async function verifySessionToken(token) {
+/**
+ * Verifies a frontend session token or JWT
+ * @param {string} token - The token from the frontend (Bearer token)
+ * @returns {object} claims - The JWT claims
+ */
+async function verifyClerkJWT(token) {
   try {
-    // This verifies a frontend session token (no 'aud' claim needed)
-    const session = await clerk.sessions.verifyToken(token);
-    console.log('Session verified:', session);
-    return session;
+    // For session tokens, you can skip audience if using frontend session
+    const verified = await jwtVerify(token, {
+      issuer: process.env.CLERK_ISSUER,  // e.g., https://clerk.bookstore.ba
+      // audience: 'backend', // optional for session tokens
+    });
+
+    console.log('JWT verified:', verified.claims);
+    return verified.claims;
   } catch (err) {
-    console.error('Session verification failed:', err);
+    console.error('JWT verification failed:', err);
     throw err;
   }
 }
 
-module.exports = { verifySessionToken, clerk };
+/**
+ * Get user data from Clerk by userId (sub claim)
+ */
+async function getClerkUser(userId) {
+  return await users.getUser(userId);
+}
+
+module.exports = { verifyClerkJWT, getClerkUser };

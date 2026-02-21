@@ -1,19 +1,17 @@
-// middleware/verifyClerkJWT.js
+// middleware/testClerkJWT.js
 require('dotenv').config();
-const { jwtVerify, users } = require('@clerk/clerk-sdk-node');
+const { verifyJwt, users } = require('@clerk/clerk-sdk-node'); // <-- note: verifyJwt
 
 /**
  * Verifies a frontend session token or JWT
- * @param {string} token - The token from the frontend (Bearer token)
- * @returns {object} claims - The JWT claims
+ * @param {string} token
  */
 async function verifyClerkJWT(token) {
   try {
-    const verified = await jwtVerify(token, {
-      issuer: process.env.CLERK_ISSUER,   // e.g., https://clerk.bookstore.ba
-      audience: 'backend',                // MUST match the audience in your JWT template
+    const verified = await verifyJwt(token, {
+      issuer: process.env.CLERK_ISSUER,  // e.g., https://clerk.bookstore.ba
+      audience: 'backend',                // must match your JWT template audience
     });
-
     console.log('JWT verified:', verified.claims);
     return verified.claims;
   } catch (err) {
@@ -23,7 +21,7 @@ async function verifyClerkJWT(token) {
 }
 
 /**
- * Get user data from Clerk by userId (sub claim)
+ * Get Clerk user by ID
  */
 async function getClerkUser(userId) {
   return await users.getUser(userId);

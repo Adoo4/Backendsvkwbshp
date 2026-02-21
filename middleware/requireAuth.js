@@ -1,24 +1,20 @@
 // middleware/requireAuth.js
-const { Clerk } = require('@clerk/clerk-sdk-node');
+const clerk = require('../middleware/clerk'); // <- import the instance
 const User = require('../models/user');
-
-const clerk = new Clerk({ apiKey: process.env.CLERK_SECRET_KEY }); // your live key
 
 module.exports = async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization; // "Bearer <token>"
-    if (!authHeader)
-      return res.status(401).json({ message: 'No token provided' });
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Verify API JWT
+    // This is the Node SDK verify method
     const { claims } = await clerk.jwt.verify(token, { template: 'backend' });
 
-    if (!claims || !claims.sub)
-      return res.status(401).json({ message: 'Invalid token' });
+    if (!claims || !claims.sub) return res.status(401).json({ message: 'Invalid token' });
 
-    // Get Clerk user info
+    // Fetch Clerk user
     const clerkUser = await clerk.users.getUser(claims.sub);
 
     const email =

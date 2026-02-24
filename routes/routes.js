@@ -183,51 +183,121 @@ router.get("/slug/:slug", async (req, res) => {
 // GET related books - must come BEFORE /:id
 router.get("/related/:id", async (req, res) => {
   const { id } = req.params;
-  const { category } = req.query;
 
-  if (!category) {
-    return res.status(400).json({ message: "Category is required" });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid ID" });
   }
 
   try {
-    const books = await Book.aggregate([
+    const currentBook = await Book.findById(id);
+
+    if (!currentBook) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    const limit = 7;
+
+    // 1️⃣ ISTI AUTOR
+    const sameAuthor = await Book.aggregate([
       {
         $match: {
-          subCategory: category, //mainCategory: category,
-          _id: { $ne: new mongoose.Types.ObjectId(id) },
+          author: currentBook.author,
+          _id: { $ne: currentBook._id },
         },
       },
-      { $sample: { size: 7 } },
-      {
-        $project: {
-          title: 1,
-          slug: 1,
-          coverImage: 1,
-          author: 1,
-          mpc: 1,
-          discount: 1,
-          quantity: 1,
-        },
-      },
+      { $sample: { size: limit } },
     ]);
 
-   const booksWithPrices = books.map((book) => {
-  const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+    // 2️⃣ ISTA SUBCATEGORY (ako nema dovoljno)
+    const remainingAfterAuthor = limit - sameAuthor.length;
 
-  return {
-    ...book,
-    ...calculatePrice(book.mpc, book.discount),
-    onlineQuantity,
-    isAvailableOnline: onlineQuantity > 0,
-  };
-});
+    let sameSubCategory = [];
+    if (remainingAfterAuthor > 0) {
+      sameSubCategory = await Book.aggregate([
+        {
+          $match: {
+            subCategory: currentBook.subCategory,
+            _id: {
+              $ne: currentBook._id,
+              $nin: sameAuthor.map((b) => b._id),
+            },
+          },
+        },
+        { $sample: { size: remainingAfterAuthor } },
+      ]);
+    }
+
+    const remainingAfterSub =
+      remainingAfterAuthor - sameSubCategory.length;
+
+    // 3️⃣ ISTA MAIN CATEGORY
+    let sameMainCategory = [];
+    if (remainingAfterSub > 0) {
+      sameMainCategory = await Book.aggregate([
+        {
+          $match: {
+            mainCategory: currentBook.mainCategory,
+            _id: {
+              $ne: currentBook._id,
+              $nin: [
+                ...sameAuthor.map((b) => b._id),
+                ...sameSubCategory.map((b) => b._id),
+              ],
+            },
+          },
+        },
+        { $sample: { size: remainingAfterSub } },
+      ]);
+    }
+
+    const remainingAfterMain =
+      remainingAfterSub - sameMainCategory.length;
+
+    // 4️⃣ RANDOM FALLBACK
+    let randomBooks = [];
+    if (remainingAfterMain > 0) {
+      randomBooks = await Book.aggregate([
+        {
+          $match: {
+            _id: {
+              $ne: currentBook._id,
+              $nin: [
+                ...sameAuthor.map((b) => b._id),
+                ...sameSubCategory.map((b) => b._id),
+                ...sameMainCategory.map((b) => b._id),
+              ],
+            },
+          },
+        },
+        { $sample: { size: remainingAfterMain } },
+      ]);
+    }
+
+    const relatedBooks = [
+      ...sameAuthor,
+      ...sameSubCategory,
+      ...sameMainCategory,
+      ...randomBooks,
+    ];
+
+    // 🔥 Dodaj price + onlineQuantity kao što već radiš
+    const booksWithPrices = relatedBooks.map((book) => {
+      const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+      return {
+        ...book,
+        ...calculatePrice(book.mpc, book.discount),
+        onlineQuantity,
+        isAvailableOnline: onlineQuantity > 0,
+      };
+    });
 
     res.json(booksWithPrices);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch related books" });
   }
 });
-
 
 // SEARCH Books
 router.get("/search", async (req, res) => {

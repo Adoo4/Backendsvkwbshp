@@ -193,7 +193,7 @@ router.get("/related/:id", async (req, res) => {
     const books = await Book.aggregate([
       {
         $match: {
-          mainCategory: category,
+          subCategory: category, //mainCategory: category,
           _id: { $ne: new mongoose.Types.ObjectId(id) },
         },
       },

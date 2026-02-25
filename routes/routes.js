@@ -19,8 +19,8 @@ const slugifyUnique = async (title) => {
 
 
 const RELEVANCE_SORT = {
-  quantity: -1,           // available first
   isNew: -1,              // new books first
+  quantity: -1,           // available first
   "discount.amount": -1,  // discounted next
   updatedAt: -1,          // recently updated
   title: 1,               // stable fallback

@@ -1,4 +1,4 @@
-const RESERVED_STORE_QTY = 3;
+const RESERVED_STORE_QTY = 2;
 
 function getOnlineAvailableQuantity(quantity) {
   return Math.max(quantity - RESERVED_STORE_QTY, 0);

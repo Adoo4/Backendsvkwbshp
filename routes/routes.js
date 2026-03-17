@@ -105,6 +105,7 @@ router.get("/", async (req, res, next) => {
       mpc: 1,
       discount: 1,
       quantity: 1,
+      stockStatus: 1,
       description: 1,
       publicationYear: 1,
       subCategory: 1,
@@ -346,6 +347,7 @@ router.get("/search", async (req, res) => {
   pages: 1,
   publisher: 1,
   quantity: 1,
+  stockStatus: 1,
 },
       },
     ]);

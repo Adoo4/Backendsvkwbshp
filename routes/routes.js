@@ -381,6 +381,72 @@ router.get("/redirect/:id", async (req, res) => {
   }
 });
 
+
+// GET latest 4 books per mainCategory
+router.get("/latest-by-category", async (req, res, next) => {
+  try {
+    const books = await Book.aggregate([
+      // Sort by _id descending (newest first — _id contains timestamp)
+      { $sort: { _id: -1 } },
+
+      // Group by mainCategory, collect top 4
+      {
+        $group: {
+          _id: "$mainCategory",
+          books: {
+            $push: {
+              _id: "$_id",
+              title: "$title",
+              slug: "$slug",
+              author: "$author",
+              coverImage: "$coverImage",
+              mpc: "$mpc",
+              discount: "$discount",
+              quantity: "$quantity",
+              stockStatus: "$stockStatus",
+              subCategory: "$subCategory",
+              isNew: "$isNew",
+            },
+          },
+        },
+      },
+
+      // Slice to 4 per category
+      {
+        $project: {
+          category: "$_id",
+          _id: 0,
+          books: { $slice: ["$books", 4] },
+        },
+      },
+
+      // Sort categories alphabetically
+      { $sort: { category: 1 } },
+    ]);
+
+    // Enrich each book with prices and stock
+    const enriched = books.map(({ category, books }) => ({
+      category,
+      books: books.map((book) => {
+        const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
+        const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+        return {
+          ...book,
+          mpc,
+          discountedPrice,
+          discountAmount,
+          onlineQuantity,
+          isAvailableOnline: onlineQuantity > 0,
+        };
+      }),
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    next(err);
+  }
+});
+
 /// GET one book by ID (admin/internal)
 router.get("/id/:id", async (req, res) => {
   try {

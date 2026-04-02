@@ -526,4 +526,72 @@ async function getBook(req, res, next) {
   next();
 }
 
+
+router.get("/top-selling", async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    const results = await Order.aggregate([
+      {
+        $match: {
+          status: "paid",
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.book",
+          totalSold: { $sum: "$items.quantity" },
+        },
+      },
+      { $sort: { totalSold: -1 } },
+      { $limit: 10 },
+
+      // 🔥 join with books
+      {
+        $lookup: {
+          from: "books",
+          localField: "_id",
+          foreignField: "_id",
+          as: "book",
+        },
+      },
+      { $unwind: "$book" },
+
+      {
+        $project: {
+          _id: 0,
+          totalSold: 1,
+          book: "$book",
+        },
+      },
+    ]);
+
+    // ✅ reuse your existing logic
+    const enriched = results.map(({ book, totalSold }) => {
+      const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
+
+      return {
+        ...book,
+        ...calculatePrice(book.mpc, book.discount),
+        onlineQuantity,
+        isAvailableOnline: onlineQuantity > 0,
+        totalSold,
+      };
+    });
+
+    res.json(enriched);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch top selling books" });
+  }
+});
+
 module.exports = router;

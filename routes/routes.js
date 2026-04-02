@@ -4,6 +4,7 @@ const router = express.Router();
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
+const Order = require("../models/tempOrder"); // adjust path to match your filename
 
 const slugifyUnique = async (title) => {
   let baseSlug = slugify(title);

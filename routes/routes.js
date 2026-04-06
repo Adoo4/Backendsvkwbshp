@@ -60,6 +60,7 @@ router.get("/", async (req, res, next) => {
       language,
       isNew,
       discount,
+      isRecommended,
       sort = "relevance",
       order = "asc",
     } = req.query;
@@ -76,6 +77,9 @@ router.get("/", async (req, res, next) => {
       case "author":
         sortQuery = { author: order === "desc" ? -1 : 1 };
         break;
+      case "recommended":                                          // ← moved inside switch
+        sortQuery = { "recommendation.weight": -1, updatedAt: -1 };
+        break;
       default:
         sortQuery = RELEVANCE_SORT;
     }
@@ -86,6 +90,7 @@ router.get("/", async (req, res, next) => {
     if (subCategory) query.subCategory = subCategory;
     if (language) query.language = language;
     if (isNew === "true" || isNew === true) query.isNew = true;
+    if (isRecommended === "true") query["recommendation.isRecommended"] = true; // ← once, not twice
     if (discount === "true" || discount === true) {
       const today = new Date();
       query["discount.amount"] = { $gt: 0 };
@@ -94,8 +99,6 @@ router.get("/", async (req, res, next) => {
         { "discount.validUntil": { $exists: false } },
       ];
     }
-
-    
 
     // Lean query with projection
     const books = await Book.find(query, {
@@ -113,23 +116,20 @@ router.get("/", async (req, res, next) => {
       language: 1,
       pages: 1,
       publisher: 1,
-      language: 1,
-      quantity: 1,
       isNew: 1,
+      recommendation: 1,
     })
       .collation({ locale: "bs", strength: 1 })
       .sort(sortQuery)
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit))
-      .lean(); // ← lightweight plain JS objects
+      .lean();
 
     const totalBooks = await Book.countDocuments(query);
 
-    // Map prices and online quantity (no .toObject() needed)
     const booksWithPrices = books.map((book) => {
       const { mpc, discountedPrice, discountAmount } = calculatePrice(book.mpc, book.discount);
       const onlineQuantity = getOnlineAvailableQuantity(book.quantity);
-
       return {
         ...book,
         mpc,
@@ -150,7 +150,6 @@ router.get("/", async (req, res, next) => {
     next(err);
   }
 });
-
 // GET slugged book
 router.get("/slug/:slug", async (req, res) => {
   

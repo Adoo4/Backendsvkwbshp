@@ -32,6 +32,7 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "https://svkbkstr.netlify.app",
+    "https://svkbookstore2.vercel.app",
     "https://bookstore.ba",
     "https://www.bookstore.ba",
   ], // allow your frontend

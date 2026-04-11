@@ -12,6 +12,7 @@ require("dotenv").config();
 const { clerkMiddleware, requireAuth } = require("@clerk/express");
 
 // Routes
+const booksRoutes = require("./routes/books");     // new — Next.js app
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
@@ -64,6 +65,7 @@ app.get("/", (req, res) => {
 
 // Public routes
 app.use("/api/books", bookRoutes);
+app.use("/api/v2/books", booksRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payment", paymentRoutes);
 

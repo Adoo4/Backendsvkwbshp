@@ -6,7 +6,18 @@ const Order = require("../models/tempOrder");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 
+// ── Indexes (call once at startup, idempotent) ─────────────────────────────
+Book.schema.index({ mainCategory: 1, subCategory: 1 });
+Book.schema.index({ slug: 1 }, { unique: true });
+Book.schema.index({ author: 1 });
+Book.schema.index({ isNew: 1 });
+Book.schema.index({ "discount.amount": 1, "discount.validUntil": 1 });
+Book.schema.index({ quantity: -1, updatedAt: -1 });
+
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const slugify = (text) =>
+  text.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w-]/g, "");
 
 const slugifyUnique = async (title) => {
   let baseSlug = slugify(title);
@@ -43,17 +54,26 @@ const BOOK_PROJECTION = {
   language: 1, pages: 1, publisher: 1, isNew: 1, recommendation: 1,
 };
 
+const MAX_LIMIT = 100;
+
+// ── In-memory cache for latest-by-category ────────────────────────────────
+let latestCache = { data: null, at: 0 };
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // ── GET /  — list with filters, sort, pagination ───────────────────────────
 router.get("/", async (req, res, next) => {
   try {
     res.set("Cache-Control", "no-store");
 
     const {
-      page = 1, limit = 20,
+      page = 1,
+      limit = 20,
       mainCategory, subCategory, language,
       isNew, discount, isRecommended,
       sort = "relevance", order = "asc",
     } = req.query;
+
+    const safeLimit = Math.min(Number(limit), MAX_LIMIT);
 
     let sortQuery;
     switch (sort) {
@@ -66,9 +86,9 @@ router.get("/", async (req, res, next) => {
 
     const filter = {};
     if (mainCategory && mainCategory.toLowerCase() !== "sve knjige") filter.mainCategory = mainCategory;
-    if (subCategory)          filter.subCategory = subCategory;
-    if (language)             filter.language = language;
-    if (isNew === "true")     filter.isNew = true;
+    if (subCategory)              filter.subCategory = subCategory;
+    if (language)                 filter.language = language;
+    if (isNew === "true")         filter.isNew = true;
     if (isRecommended === "true") filter["recommendation.isRecommended"] = true;
     if (discount === "true") {
       const today = new Date();
@@ -83,8 +103,8 @@ router.get("/", async (req, res, next) => {
       Book.find(filter, BOOK_PROJECTION)
         .collation({ locale: "bs", strength: 1 })
         .sort(sortQuery)
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit))
+        .skip((Number(page) - 1) * safeLimit)
+        .limit(safeLimit)
         .lean(),
       Book.countDocuments(filter),
     ]);
@@ -92,7 +112,7 @@ router.get("/", async (req, res, next) => {
     res.json({
       books: books.map(enrich),
       totalBooks,
-      totalPages: Math.ceil(totalBooks / limit),
+      totalPages: Math.ceil(totalBooks / safeLimit),
       currentPage: Number(page),
     });
   } catch (err) {
@@ -106,7 +126,7 @@ router.get("/search", async (req, res, next) => {
     const { q, limit = 6 } = req.query;
     if (!q?.trim()) return res.json([]);
 
-    const cap = Math.min(Number(limit), 100); // never exceed 100
+    const cap = Math.min(Number(limit), MAX_LIMIT);
 
     const results = await Book.aggregate([
       {
@@ -134,7 +154,7 @@ router.get("/search", async (req, res, next) => {
 // ── GET /slug/:slug  — single book by slug ────────────────────────────────
 router.get("/slug/:slug", async (req, res, next) => {
   try {
-    const book = await Book.findOne({ slug: req.params.slug });
+    const book = await Book.findOne({ slug: req.params.slug }).lean();
     if (!book) return res.status(404).json({ message: "Book not found" });
     res.json(enrich(book));
   } catch (err) {
@@ -145,7 +165,7 @@ router.get("/slug/:slug", async (req, res, next) => {
 // ── GET /id/:id  — single book by ObjectId (admin/internal) ──────────────
 router.get("/id/:id", async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id);
+    const book = await Book.findById(req.params.id).lean();
     if (!book) return res.status(404).json({ message: "Book not found" });
     res.json(enrich(book));
   } catch (err) {
@@ -160,36 +180,55 @@ router.get("/related/:id", async (req, res, next) => {
     return res.status(400).json({ message: "Invalid ID" });
 
   try {
-    const current = await Book.findById(id);
+    const current = await Book.findById(id).lean();
     if (!current) return res.status(404).json({ message: "Book not found" });
 
     const LIMIT = 7;
-    const exclude = (ids) => ({ $ne: current._id, $nin: ids });
+    const currentId = current._id;
 
-    const sameAuthor = await Book.aggregate([
-      { $match: { author: current.author, _id: { $ne: current._id } } },
-      { $sample: { size: LIMIT } },
+    // Run author and subcategory queries in parallel first
+    const [sameAuthor, sameSubCategory] = await Promise.all([
+      Book.aggregate([
+        { $match: { author: current.author, _id: { $ne: currentId } } },
+        { $sample: { size: LIMIT } },
+      ]),
+      Book.aggregate([
+        { $match: { subCategory: current.subCategory, _id: { $ne: currentId } } },
+        { $sample: { size: LIMIT } },
+      ]),
     ]);
 
-    const need1 = LIMIT - sameAuthor.length;
-    const sameSubCategory = need1 > 0 ? await Book.aggregate([
-      { $match: { subCategory: current.subCategory, _id: exclude(sameAuthor.map(b => b._id)) } },
-      { $sample: { size: need1 } },
-    ]) : [];
+    // Deduplicate subcategory results against author results
+    const authorIds = new Set(sameAuthor.map((b) => b._id.toString()));
+    const filteredSub = sameSubCategory.filter((b) => !authorIds.has(b._id.toString()));
 
-    const need2 = need1 - sameSubCategory.length;
-    const sameMainCategory = need2 > 0 ? await Book.aggregate([
-      { $match: { mainCategory: current.mainCategory, _id: exclude([...sameAuthor, ...sameSubCategory].map(b => b._id)) } },
-      { $sample: { size: need2 } },
-    ]) : [];
+    const combined = [...sameAuthor, ...filteredSub].slice(0, LIMIT);
 
-    const need3 = need2 - sameMainCategory.length;
-    const random = need3 > 0 ? await Book.aggregate([
-      { $match: { _id: exclude([...sameAuthor, ...sameSubCategory, ...sameMainCategory].map(b => b._id)) } },
-      { $sample: { size: need3 } },
-    ]) : [];
+    if (combined.length >= LIMIT) {
+      return res.json(combined.map(enrich));
+    }
 
-    res.json([...sameAuthor, ...sameSubCategory, ...sameMainCategory, ...random].map(enrich));
+    // Fill remaining slots from main category and random in parallel
+    const excludeIds = combined.map((b) => b._id);
+    const need = LIMIT - combined.length;
+
+    const [sameMainCategory, random] = await Promise.all([
+      Book.aggregate([
+        { $match: { mainCategory: current.mainCategory, _id: { $ne: currentId, $nin: excludeIds } } },
+        { $sample: { size: need } },
+      ]),
+      Book.aggregate([
+        { $match: { _id: { $ne: currentId, $nin: excludeIds } } },
+        { $sample: { size: need } },
+      ]),
+    ]);
+
+    const mainIds = new Set(sameMainCategory.map((b) => b._id.toString()));
+    const filteredRandom = random.filter((b) => !mainIds.has(b._id.toString()));
+
+    const final = [...combined, ...sameMainCategory, ...filteredRandom].slice(0, LIMIT);
+
+    res.json(final.map(enrich));
   } catch (err) {
     next(err);
   }
@@ -198,6 +237,10 @@ router.get("/related/:id", async (req, res, next) => {
 // ── GET /latest-by-category  — 4 newest books per mainCategory ────────────
 router.get("/latest-by-category", async (req, res, next) => {
   try {
+    if (latestCache.data && Date.now() - latestCache.at < CACHE_TTL) {
+      return res.json(latestCache.data);
+    }
+
     const groups = await Book.aggregate([
       { $sort: { _id: -1 } },
       {
@@ -218,10 +261,14 @@ router.get("/latest-by-category", async (req, res, next) => {
       { $sort: { category: 1 } },
     ]);
 
-    res.json(groups.map(({ category, books }) => ({
+    const result = groups.map(({ category, books }) => ({
       category,
       books: books.map(enrich),
-    })));
+    }));
+
+    latestCache = { data: result, at: Date.now() };
+
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -260,7 +307,7 @@ router.get("/top-selling", async (req, res, next) => {
 // ── GET /redirect/:id  — resolve ObjectId → slug (legacy support) ─────────
 router.get("/redirect/:id", async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id).select("slug");
+    const book = await Book.findById(req.params.id).select("slug").lean();
     if (!book) return res.status(404).json({ message: "Book not found" });
     res.json({ url: `/books/${book.slug}` });
   } catch (err) {
@@ -303,7 +350,9 @@ router.delete("/:id", getBook, async (req, res, next) => {
 // ── Middleware ─────────────────────────────────────────────────────────────
 async function getBook(req, res, next) {
   try {
-    const book = await Book.findById(req.params.id);
+    const book = await Book.findById(req.params.id)
+      .select("_id title slug mpc discount quantity stockStatus isNew author coverImage subCategory mainCategory language pages publisher description")
+      .lean();
     if (!book) return res.status(404).json({ message: "Book not found" });
     res.book = book;
     next();

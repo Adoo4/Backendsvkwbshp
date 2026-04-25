@@ -104,6 +104,53 @@ router.get("/", async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────
+   PREVIEW CART   (no auth — guest use)
+   Body: { items: [{ bookId: string, quantity: number }] }
+   Returns live prices for the given items using the same
+   buildCartResponse logic as the authenticated cart.
+   No writes — purely a read/calculation endpoint.
+───────────────────────────────────────────── */
+router.post("/preview", async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    const empty = { items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 };
+
+    if (!Array.isArray(items) || items.length === 0) return res.json(empty);
+
+    // Validate and deduplicate input
+    const validItems = items.filter(
+      ({ bookId, quantity }) =>
+        isValidId(bookId) && Number.isInteger(quantity) && quantity > 0
+    );
+
+    if (validItems.length === 0) return res.json(empty);
+
+    // Single batch fetch for all books
+    const bookIds = [...new Set(validItems.map((i) => i.bookId))];
+    const books = await Book.find({ _id: { $in: bookIds } })
+      .select(
+        "title author mpc coverImage discount format isbn pages slug subCategory quantity language year publisher isNew"
+      )
+      .lean();
+
+    const bookMap = Object.fromEntries(books.map((b) => [b._id.toString(), b]));
+
+    // Build synthetic cart items in the same shape populateCart produces
+    const cartItems = validItems.flatMap(({ bookId, quantity }) => {
+      const book = bookMap[bookId];
+      if (!book) return []; // book deleted or not found — skip silently
+      return [{ book, quantity }];
+    });
+
+    return res.json(buildCartResponse(cartItems));
+  } catch (err) {
+    console.error("PREVIEW CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to preview cart" });
+  }
+});
+
+/* ─────────────────────────────────────────────
    ADD TO CART   (auth required)
 ───────────────────────────────────────────── */
 router.post("/", requireAuth(), async (req, res) => {
@@ -155,9 +202,6 @@ router.post("/", requireAuth(), async (req, res) => {
 
 /* ─────────────────────────────────────────────
    MERGE GUEST CART ON LOGIN   (auth required)
-   Body: { items: [{ bookId: string, quantity: number }] }
-   Strategy: guest quantity is ADDED to any existing server quantity,
-             clamped to the available online stock.
 ───────────────────────────────────────────── */
 router.post("/merge", requireAuth(), async (req, res) => {
   try {
@@ -167,14 +211,12 @@ router.post("/merge", requireAuth(), async (req, res) => {
     if (!Array.isArray(items) || items.length === 0)
       return res.status(400).json({ message: "No items to merge" });
 
-    // Upsert the cart document so we always have one to work with
     const cart = await Cart.findOneAndUpdate(
       { userId },
       { $setOnInsert: { userId, items: [] } },
       { new: true, upsert: true }
     );
 
-    // Collect unique, valid bookIds so we can batch-fetch books
     const validItems = items.filter(
       ({ bookId, quantity }) =>
         isValidId(bookId) && Number.isInteger(quantity) && quantity > 0
@@ -197,8 +239,6 @@ router.post("/merge", requireAuth(), async (req, res) => {
 
     for (const { bookId, quantity } of validItems) {
       const onlineAvailable = stockMap[bookId];
-
-      // Skip books not found or completely unavailable
       if (onlineAvailable === undefined || onlineAvailable === 0) continue;
 
       const existing = cart.items.find((i) => i.book.toString() === bookId);
@@ -266,8 +306,6 @@ router.patch("/", requireAuth(), async (req, res) => {
 
 /* ─────────────────────────────────────────────
    REMOVE SINGLE ITEM   (auth required)
-   NOTE: must be defined before DELETE "/" to avoid Express
-   matching "/:bookId" with an empty param.
 ───────────────────────────────────────────── */
 router.delete("/:bookId", requireAuth(), async (req, res) => {
   try {

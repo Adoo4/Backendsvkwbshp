@@ -16,6 +16,7 @@ const booksRoutes = require("./routes/books");     // new — Next.js app
 const bookRoutes = require("./routes/routes");
 const userRoutes = require("./routes/users");
 const cartRoutes = require("./routes/cartRoutes");
+const cartRoute2 = require("./routes/cartv2"); // new — Next.js app
 const wishlistRoutes = require("./routes/wishlistRoutes");
 const paymentRoutes = require("./routes/payment");
 const orderRoutes = require("./routes/orderRoutes");
@@ -73,6 +74,7 @@ app.use("/api/admin/books", adminBooksRouter);
 
 // Protected routes
 app.use("/api/cart", requireAuth(), cartRoutes);
+app.use("/api/v2/cart", cartRoute2); 
 app.use("/api/wishlist", requireAuth(), wishlistRoutes);
 app.use("/api/order", requireAuth(), orderRoutes);
 

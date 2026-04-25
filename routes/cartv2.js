@@ -54,7 +54,7 @@ function buildCartResponse(cartItems) {
     { items: [], totalCart: 0 }
   );
 
-  const delivery = result.totalCart >= 100 ? 0 : result.items.length ? 5 : 0;
+  const delivery = result.totalCart >= 100 ? 0 : result.items.length ? 8 : 0;
   const totalWithDelivery = Number((result.totalCart + delivery).toFixed(2));
 
   return {

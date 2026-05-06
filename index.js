@@ -23,6 +23,9 @@ const orderRoutes = require("./routes/orderRoutes");
 const monriCallbackRoute = require("./routes/callback");
 const adminBooksRouter = require("./routes/adminBooks");
 const wishlist = require("./routes/wishlistv2");
+const monriComponentsRoutes = require("./routes/monriComponents"); // inline Monri Components flow (separate from /api/payment)
+const guestOrderRoutes = require("./routes/guestOrder"); // guest checkout — no auth required
+const guestMonriRoutes = require("./routes/guestMonriComponents"); // guest Monri payment session
 
 const app = express();
 app.set("trust proxy", 1);
@@ -79,6 +82,9 @@ app.use("/api/v2/cart", cartRoute2);
 app.use("/api/wishlist", requireAuth(), wishlistRoutes);
 app.use("/api/wishlistv2", requireAuth(), wishlist);
 app.use("/api/order", requireAuth(), orderRoutes);
+app.use("/api/monri-components", monriComponentsRoutes); // auth handled per-route inside the file
+app.use("/api/guest/order", guestOrderRoutes); // guest checkout — no auth
+app.use("/api/guest/monri-components", guestMonriRoutes); // guest payment session — no auth
 
 // ---------------- DB Connection ----------------
 const connectDB = async () => {

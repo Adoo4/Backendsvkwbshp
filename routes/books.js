@@ -63,7 +63,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // ── GET /  — list with filters, sort, pagination ───────────────────────────
 router.get("/", async (req, res, next) => {
   try {
-    res.set("Cache-Control", "no-store");
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
 
     const {
       page = 1,

@@ -2,7 +2,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { requireAuth, getAuth } = require("@clerk/express");
-
+const devAuth = require("../middleware/devAuth");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
@@ -153,7 +153,7 @@ router.post("/preview", async (req, res) => {
 /* ─────────────────────────────────────────────
    ADD TO CART   (auth required)
 ───────────────────────────────────────────── */
-router.post("/", requireAuth(), async (req, res) => {
+router.post("/", devAuth, async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { bookId, quantity = 1 } = req.body;
@@ -203,7 +203,7 @@ router.post("/", requireAuth(), async (req, res) => {
 /* ─────────────────────────────────────────────
    MERGE GUEST CART ON LOGIN   (auth required)
 ───────────────────────────────────────────── */
-router.post("/merge", requireAuth(), async (req, res) => {
+router.post("/merge", devAuth, async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { items } = req.body;
@@ -267,7 +267,7 @@ router.post("/merge", requireAuth(), async (req, res) => {
 /* ─────────────────────────────────────────────
    UPDATE QUANTITY   (auth required)
 ───────────────────────────────────────────── */
-router.patch("/", requireAuth(), async (req, res) => {
+router.patch("/", devAuth, async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { bookId, quantity } = req.body;
@@ -307,7 +307,7 @@ router.patch("/", requireAuth(), async (req, res) => {
 /* ─────────────────────────────────────────────
    REMOVE SINGLE ITEM   (auth required)
 ───────────────────────────────────────────── */
-router.delete("/:bookId", requireAuth(), async (req, res) => {
+router.delete("/:bookId", devAuth, async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { bookId } = req.params;
@@ -333,7 +333,7 @@ router.delete("/:bookId", requireAuth(), async (req, res) => {
 /* ─────────────────────────────────────────────
    CLEAR CART   (auth required)
 ───────────────────────────────────────────── */
-router.delete("/", requireAuth(), async (req, res) => {
+router.delete("/", devAuth, async (req, res) => {
   try {
     const userId = req.auth.userId;
 

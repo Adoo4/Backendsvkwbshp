@@ -3,6 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 
 const Wishlist = require("../models/wishlist");
+const Cart = require("../models/cart");
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
@@ -115,6 +116,66 @@ router.delete("/", async (req, res) => {
   } catch (err) {
     console.error("CLEAR WISHLIST ERROR:", err);
     return res.status(500).json({ message: "Error clearing wishlist" });
+  }
+});
+
+/* ─────────────────────────────────────────────
+   POST  /api/wishlistv2/move-to-cart/:bookId
+   Adds the book to the cart and removes it from the wishlist.
+   Body: { quantity?: number }  // defaults to 1
+   Returns: { items: [...] }   // updated wishlist
+───────────────────────────────────────────── */
+router.post("/move-to-cart/:bookId", async (req, res) => {
+  try {
+    const { userId } = req.auth;
+    const { bookId } = req.params;
+    const quantity = Number.isInteger(req.body?.quantity) ? req.body.quantity : 1;
+
+    if (!isValidId(bookId))
+      return res.status(400).json({ message: "Invalid book ID" });
+
+    if (quantity <= 0)
+      return res.status(400).json({ message: "Quantity must be a positive integer" });
+
+    const book = await Book.findById(bookId).lean();
+    if (!book) return res.status(404).json({ message: "Book not found" });
+
+    const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
+    if (onlineAvailable === 0)
+      return res.status(400).json({ message: "This book is not available for online purchase" });
+
+    const cart = await Cart.findOneAndUpdate(
+      { userId },
+      { $setOnInsert: { userId, items: [] } },
+      { new: true, upsert: true }
+    );
+
+    const existing = cart.items.find((i) => i.book.toString() === bookId);
+    const newQty = (existing?.quantity ?? 0) + quantity;
+
+    if (newQty > onlineAvailable)
+      return res.status(400).json({
+        message: `Only ${onlineAvailable} cop${onlineAvailable === 1 ? "y" : "ies"} available online`,
+      });
+
+    if (existing) {
+      existing.quantity = newQty;
+    } else {
+      cart.items.push({ book: bookId, quantity });
+    }
+
+    await cart.save();
+
+    const updated = await Wishlist.findOneAndUpdate(
+      { userId },
+      { $pull: { items: new mongoose.Types.ObjectId(bookId) } },
+      { new: true }
+    ).populate({ path: "items", select: BOOK_SELECT }).lean();
+
+    return res.json({ items: updated ? buildItems(updated.items) : [] });
+  } catch (err) {
+    console.error("MOVE WISHLIST → CART ERROR:", err);
+    return res.status(500).json({ message: "Failed to move item to cart" });
   }
 });
 

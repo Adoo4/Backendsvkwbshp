@@ -10,6 +10,7 @@ require("dotenv").config();
 
 // ✅ Use modern Clerk Express
 const { clerkMiddleware, requireAuth } = require("@clerk/express");
+const devAuth = require("./middleware/devAuth");
 
 // Routes
 const booksRoutes = require("./routes/books");     // new — Next.js app
@@ -80,7 +81,7 @@ app.use("/api/admin/books", adminBooksRouter);
 app.use("/api/cart", requireAuth(), cartRoutes);
 app.use("/api/v2/cart", cartRoute2); 
 app.use("/api/wishlist", requireAuth(), wishlistRoutes);
-app.use("/api/wishlistv2", requireAuth(), wishlist);
+app.use("/api/wishlistv2", devAuth, wishlist);
 app.use("/api/order", requireAuth(), orderRoutes);
 app.use("/api/monri-components", monriComponentsRoutes); // auth handled per-route inside the file
 app.use("/api/guest/order", guestOrderRoutes); // guest checkout — no auth

@@ -2,6 +2,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { requireAuth, getAuth } = require("@clerk/express");
+const { verifyToken } = require("@clerk/backend");
 const devAuth = require("../middleware/devAuth");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
@@ -9,6 +10,28 @@ const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 
 const router = express.Router();
+
+// Resolves userId from Bearer token using the active Clerk instance.
+// Returns null on missing/invalid token (the GET route treats that as "guest").
+// Needed because the global clerkMiddleware() in index.js uses the production
+// secret key, so dev-instance tokens are silently treated as signed-out there.
+async function resolveUserId(req) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.replace("Bearer ", "");
+  if (!token) return null;
+
+  const secretKey =
+    process.env.DEV_MODE === "true"
+      ? process.env.DEV_CLERK_SECRET_KEY
+      : process.env.CLERK_SECRET_KEY;
+
+  try {
+    const verified = await verifyToken(token, { secretKey });
+    return verified.sub;
+  } catch {
+    return null;
+  }
+}
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -87,7 +110,7 @@ function isValidId(id) {
 ───────────────────────────────────────────── */
 router.get("/", async (req, res) => {
   try {
-    const { userId } = getAuth(req); // null when guest
+    const userId = await resolveUserId(req); // null when guest or invalid token
 
     const empty = { items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 };
 

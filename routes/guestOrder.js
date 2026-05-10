@@ -15,6 +15,10 @@ const DELIVERY_PRICES = {
   storepickup: 0,
 };
 
+// Cart totals at or above this threshold qualify for free delivery on any method.
+// Must stay in sync with frontend (app/checkout/page.tsx) and cart route (cartv2.js).
+const FREE_SHIPPING_THRESHOLD = 100;
+
 // Guest orders share the TempOrder collection with auth orders.
 // We tag them with a "guest:" prefix on clerkId so existing webhooks/admin
 // queries can distinguish them without schema changes.
@@ -93,7 +97,8 @@ router.post("/create-temp", async (req, res) => {
     if (!Object.prototype.hasOwnProperty.call(DELIVERY_PRICES, deliveryMethod)) {
       return res.status(400).json({ message: "Invalid delivery method" });
     }
-    const deliveryPrice = DELIVERY_PRICES[deliveryMethod];
+    const deliveryPrice =
+      cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : DELIVERY_PRICES[deliveryMethod];
     const totalAmount = Number((cartTotal + deliveryPrice).toFixed(2));
 
     // ── Persist temp order ──

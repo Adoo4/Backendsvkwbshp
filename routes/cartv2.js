@@ -2,36 +2,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { requireAuth, getAuth } = require("@clerk/express");
-const { verifyToken } = require("@clerk/backend");
-const devAuth = require("../middleware/devAuth");
 const Cart = require("../models/cart");
 const Book = require("../models/book");
 const { calculatePrice } = require("../utils/priceUtils");
 const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 
 const router = express.Router();
-
-// Resolves userId from Bearer token using the active Clerk instance.
-// Returns null on missing/invalid token (the GET route treats that as "guest").
-// Needed because the global clerkMiddleware() in index.js uses the production
-// secret key, so dev-instance tokens are silently treated as signed-out there.
-async function resolveUserId(req) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.replace("Bearer ", "");
-  if (!token) return null;
-
-  const secretKey =
-    process.env.DEV_MODE === "true"
-      ? process.env.DEV_CLERK_SECRET_KEY
-      : process.env.CLERK_SECRET_KEY;
-
-  try {
-    const verified = await verifyToken(token, { secretKey });
-    return verified.sub;
-  } catch {
-    return null;
-  }
-}
 
 /* ─────────────────────────────────────────────
    HELPERS
@@ -110,7 +86,7 @@ function isValidId(id) {
 ───────────────────────────────────────────── */
 router.get("/", async (req, res) => {
   try {
-    const userId = await resolveUserId(req); // null when guest or invalid token
+    const { userId } = getAuth(req); // null when guest
 
     const empty = { items: [], totalCart: 0, delivery: 0, totalWithDelivery: 0 };
 
@@ -175,10 +151,13 @@ router.post("/preview", async (req, res) => {
 
 /* ─────────────────────────────────────────────
    ADD TO CART   (auth required)
+   Two round-trips total:
+     1) parallel: fetch book stock + lookup existing item qty
+     2) single atomic write: $inc existing item OR $push new one
 ───────────────────────────────────────────── */
-router.post("/", devAuth, async (req, res) => {
+router.post("/", requireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const { userId } = getAuth(req);
     const { bookId, quantity = 1 } = req.body;
 
     if (!isValidId(bookId))
@@ -187,35 +166,46 @@ router.post("/", devAuth, async (req, res) => {
     if (!Number.isInteger(quantity) || quantity <= 0)
       return res.status(400).json({ message: "Quantity must be a positive integer" });
 
-    const book = await Book.findById(bookId).lean();
+    const bookObjectId = new mongoose.Types.ObjectId(bookId);
+
+    const [book, existingItem] = await Promise.all([
+      Book.findById(bookId).select("quantity").lean(),
+      Cart.findOne(
+        { userId, "items.book": bookObjectId },
+        { "items.$": 1 },
+      ).lean(),
+    ]);
+
     if (!book) return res.status(404).json({ message: "Book not found" });
 
     const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
-
     if (onlineAvailable === 0)
       return res.status(400).json({ message: "This book is not available for online purchase" });
 
-    const cart = await Cart.findOneAndUpdate(
-      { userId },
-      { $setOnInsert: { userId, items: [] } },
-      { new: true, upsert: true }
-    );
-
-    const existing = cart.items.find((i) => i.book.toString() === bookId);
-    const newQty = (existing?.quantity ?? 0) + quantity;
+    const currentQty = existingItem?.items?.[0]?.quantity ?? 0;
+    const newQty = currentQty + quantity;
 
     if (newQty > onlineAvailable)
       return res.status(400).json({
         message: `Only ${onlineAvailable} cop${onlineAvailable === 1 ? "y" : "ies"} available online`,
       });
 
-    if (existing) {
-      existing.quantity = newQty;
+    if (currentQty > 0) {
+      await Cart.updateOne(
+        { userId, "items.book": bookObjectId },
+        { $inc: { "items.$.quantity": quantity } },
+      );
     } else {
-      cart.items.push({ book: bookId, quantity });
+      await Cart.updateOne(
+        { userId },
+        {
+          $push: { items: { book: bookObjectId, quantity } },
+          $setOnInsert: { userId },
+        },
+        { upsert: true },
+      );
     }
 
-    await cart.save();
     return res.status(201).json({ message: "Added to cart" });
   } catch (err) {
     console.error("ADD CART ERROR:", err);
@@ -226,9 +216,9 @@ router.post("/", devAuth, async (req, res) => {
 /* ─────────────────────────────────────────────
    MERGE GUEST CART ON LOGIN   (auth required)
 ───────────────────────────────────────────── */
-router.post("/merge", devAuth, async (req, res) => {
+router.post("/merge", requireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const { userId } = getAuth(req);
     const { items } = req.body;
 
     if (!Array.isArray(items) || items.length === 0)
@@ -289,10 +279,11 @@ router.post("/merge", devAuth, async (req, res) => {
 
 /* ─────────────────────────────────────────────
    UPDATE QUANTITY   (auth required)
+   Two round-trips: stock check, then single atomic $set.
 ───────────────────────────────────────────── */
-router.patch("/", devAuth, async (req, res) => {
+router.patch("/", requireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const { userId } = getAuth(req);
     const { bookId, quantity } = req.body;
 
     if (!isValidId(bookId))
@@ -301,24 +292,22 @@ router.patch("/", devAuth, async (req, res) => {
     if (!Number.isInteger(quantity) || quantity <= 0)
       return res.status(400).json({ message: "Quantity must be a positive integer" });
 
-    const book = await Book.findById(bookId).lean();
+    const book = await Book.findById(bookId).select("quantity").lean();
     if (!book) return res.status(404).json({ message: "Book not found" });
 
     const onlineAvailable = getOnlineAvailableQuantity(book.quantity);
-
     if (quantity > onlineAvailable)
       return res.status(400).json({
         message: `Only ${onlineAvailable} cop${onlineAvailable === 1 ? "y" : "ies"} available online`,
       });
 
-    const cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    const result = await Cart.updateOne(
+      { userId, "items.book": new mongoose.Types.ObjectId(bookId) },
+      { $set: { "items.$.quantity": quantity } },
+    );
 
-    const item = cart.items.find((i) => i.book.toString() === bookId);
-    if (!item) return res.status(404).json({ message: "Item not in cart" });
-
-    item.quantity = quantity;
-    await cart.save();
+    if (result.matchedCount === 0)
+      return res.status(404).json({ message: "Item not in cart" });
 
     return res.json({ message: "Cart updated" });
   } catch (err) {
@@ -330,9 +319,9 @@ router.patch("/", devAuth, async (req, res) => {
 /* ─────────────────────────────────────────────
    REMOVE SINGLE ITEM   (auth required)
 ───────────────────────────────────────────── */
-router.delete("/:bookId", devAuth, async (req, res) => {
+router.delete("/:bookId", requireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const { userId } = getAuth(req);
     const { bookId } = req.params;
 
     if (!isValidId(bookId))
@@ -356,9 +345,9 @@ router.delete("/:bookId", devAuth, async (req, res) => {
 /* ─────────────────────────────────────────────
    CLEAR CART   (auth required)
 ───────────────────────────────────────────── */
-router.delete("/", devAuth, async (req, res) => {
+router.delete("/", requireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const { userId } = getAuth(req);
 
     await Cart.deleteOne({ userId });
 

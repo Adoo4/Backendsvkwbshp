@@ -72,8 +72,10 @@ router.get("/", async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────
-   POST  /api/wishlist
+   POST  /api/wishlistv2
    Body: { bookId: string }
+   Returns slim { ok: true } — the frontend invalidates the wishlist query
+   on mutation settle and refetches the full list via GET.
 ───────────────────────────────────────────── */
 router.post("/", async (req, res) => {
   try {
@@ -83,19 +85,17 @@ router.post("/", async (req, res) => {
     if (!isValidId(bookId))
       return res.status(400).json({ message: "Invalid book ID" });
 
-    // Verify book exists
     const bookExists = await Book.exists({ _id: bookId });
     if (!bookExists)
       return res.status(404).json({ message: "Book not found" });
 
-    // Upsert wishlist; $addToSet is atomic and idempotent — no duplicate check needed
-    const result = await Wishlist.findOneAndUpdate(
+    await Wishlist.updateOne(
       { userId },
       { $addToSet: { items: new mongoose.Types.ObjectId(bookId) } },
-      { upsert: true, new: true }
-    ).populate({ path: "items", select: BOOK_SELECT }).lean();
+      { upsert: true },
+    );
 
-    return res.status(201).json({ items: buildItems(result.items) });
+    return res.status(201).json({ ok: true });
   } catch (err) {
     console.error("ADD WISHLIST ERROR:", err);
     return res.status(500).json({ message: "Error adding to wishlist" });
@@ -112,7 +112,7 @@ router.delete("/", async (req, res) => {
 
     await Wishlist.deleteOne({ userId });
 
-    return res.json({ items: [] });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("CLEAR WISHLIST ERROR:", err);
     return res.status(500).json({ message: "Error clearing wishlist" });
@@ -166,13 +166,12 @@ router.post("/move-to-cart/:bookId", async (req, res) => {
 
     await cart.save();
 
-    const updated = await Wishlist.findOneAndUpdate(
+    await Wishlist.updateOne(
       { userId },
       { $pull: { items: new mongoose.Types.ObjectId(bookId) } },
-      { new: true }
-    ).populate({ path: "items", select: BOOK_SELECT }).lean();
+    );
 
-    return res.json({ items: updated ? buildItems(updated.items) : [] });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("MOVE WISHLIST → CART ERROR:", err);
     return res.status(500).json({ message: "Failed to move item to cart" });
@@ -191,17 +190,15 @@ router.delete("/:bookId", async (req, res) => {
     if (!isValidId(bookId))
       return res.status(400).json({ message: "Invalid book ID" });
 
-    // Atomic $pull — no fetch-filter-save round trip
-    const result = await Wishlist.findOneAndUpdate(
+    const result = await Wishlist.updateOne(
       { userId },
       { $pull: { items: new mongoose.Types.ObjectId(bookId) } },
-      { new: true }
-    ).populate({ path: "items", select: BOOK_SELECT }).lean();
+    );
 
-    if (!result)
+    if (result.matchedCount === 0)
       return res.status(404).json({ message: "Wishlist not found" });
 
-    return res.json({ items: buildItems(result.items) });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("REMOVE WISHLIST ERROR:", err);
     return res.status(500).json({ message: "Error removing item" });

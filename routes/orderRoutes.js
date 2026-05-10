@@ -77,6 +77,10 @@ router.post("/create-temp", async (req, res) => {
     }
 
     // 2️⃣ Delivery calculation
+    // Cart totals at or above this threshold qualify for free delivery on any method.
+    // Must stay in sync with frontend (app/checkout/page.tsx) and cart route (cartv2.js).
+    const FREE_SHIPPING_THRESHOLD = 100;
+
     const deliveryPrices = {
       bhposta: 8,
       brzaposta: 10,
@@ -89,7 +93,8 @@ router.post("/create-temp", async (req, res) => {
       return res.status(400).json({ message: "Invalid delivery method" });
     }
 
-    const deliveryPrice = deliveryPrices[deliveryMethod];
+    const deliveryPrice =
+      cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : deliveryPrices[deliveryMethod];
     const totalAmount = Number(
       (cartTotal + deliveryPrice).toFixed(2)
     );

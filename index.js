@@ -10,7 +10,6 @@ require("dotenv").config();
 
 // ✅ Use modern Clerk Express
 const { clerkMiddleware, requireAuth } = require("@clerk/express");
-const devAuth = require("./middleware/devAuth");
 
 // Routes
 const booksRoutes = require("./routes/books");     // new — Next.js app
@@ -61,8 +60,17 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// ✅ Clerk middleware (must be BEFORE routes that require auth)
-app.use(clerkMiddleware());
+// ✅ Clerk middleware (must be BEFORE routes that require auth).
+// In DEV_MODE we authenticate against the dev Clerk instance so a local
+// frontend using pk_test_* tokens can hit this deployed backend.
+app.use(
+  process.env.DEV_MODE === "true"
+    ? clerkMiddleware({
+        secretKey: process.env.DEV_CLERK_SECRET_KEY,
+        publishableKey: process.env.DEV_CLERK_PUBLISHABLE_KEY,
+      })
+    : clerkMiddleware()
+);
 
 // ---------------- Routes ----------------
 app.get("/", (req, res) => {
@@ -81,7 +89,7 @@ app.use("/api/admin/books", adminBooksRouter);
 app.use("/api/cart", requireAuth(), cartRoutes);
 app.use("/api/v2/cart", cartRoute2); 
 app.use("/api/wishlist", requireAuth(), wishlistRoutes);
-app.use("/api/wishlistv2", devAuth, wishlist);
+app.use("/api/wishlistv2", requireAuth(), wishlist);
 app.use("/api/order", requireAuth(), orderRoutes);
 app.use("/api/monri-components", monriComponentsRoutes); // auth handled per-route inside the file
 app.use("/api/guest/order", guestOrderRoutes); // guest checkout — no auth

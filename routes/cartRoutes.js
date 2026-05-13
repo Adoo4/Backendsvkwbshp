@@ -1,7 +1,8 @@
 // routes/cartRoutes.js
 const express = require("express");
 const mongoose = require("mongoose");
-const { requireAuth } = require("@clerk/express");
+
+const requireAuth = require("../middleware/requireAuth");
 
 const Cart = require("../models/cart");
 const Book = require("../models/book");
@@ -11,7 +12,7 @@ const { getOnlineAvailableQuantity } = require("../utils/stockUtils");
 const router = express.Router();
 
 // ✅ Protect ALL routes in this file
-router.use(requireAuth());
+router.use(requireAuth);
 
 /* ================================
    GET CART
